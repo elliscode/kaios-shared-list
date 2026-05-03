@@ -1,7 +1,7 @@
 import re
 
 FLOAT_REGEX = "^[\\-]{0,1}\\d*[\\.]{0,1}\\d+$"
-ID_REGEX = "[a-zA-Z0-9]{10}"
+ID_REGEX = "^[a-zA-Z0-9]{10}$"
 
 
 def validate_unix_time(value):

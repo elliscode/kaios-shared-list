@@ -160,7 +160,7 @@ def authenticate(func):
         cookie_string = event["headers"]["cookie"]
         cookie = parse_cookie(cookie_string)
         body = parse_body(event["body"])
-        csrf_token = body["csrf"]
+        csrf_token = body.get("csrf")
         token_data = get_token(cookie)
         if token_data is None or token_data["expiration"] < int(time.time()):
             return format_response(
@@ -168,7 +168,7 @@ def authenticate(func):
                 http_code=403,
                 body="Your session has expired, please log in",
             )
-        active_tokens = get_active_tokens(token_data["user"])
+        active_tokens = get_active_tokens(token_data["user_id"])
         if token_data["key2"] not in active_tokens["tokens"].keys():
             return format_response(
                 event=event,
@@ -176,7 +176,7 @@ def authenticate(func):
                 body="Your session has expired, please log in",
             )
         if csrf_token is None or token_data["csrf"] != csrf_token:
-            delete_token(token_data["key1"])
+            delete_token(token_data["key2"])
             return format_response(
                 event=event,
                 http_code=403,
@@ -262,6 +262,44 @@ def delete_otp(user_id):
     )
 
 
+def get_list(list_id):
+    result = dynamo.get_item(
+        Key=python_obj_to_dynamo_obj({"key1": "list", "key2": list_id}),
+        TableName=TABLE_NAME,
+    )
+    if "Item" in result:
+        return dynamo_obj_to_python_obj(result["Item"])
+    return None
+
+
+def store_list(list_id, list_data):
+    python_data = {"key1": "list", "key2": list_id, "list": list_data}
+    dynamo.put_item(
+        TableName=TABLE_NAME,
+        Item=python_obj_to_dynamo_obj(python_data),
+    )
+    return python_data
+
+
+def add_list_id_to_user(user_id, list_id):
+    user_data = get_user_data(user_id)
+    if user_data is None:
+        return
+    current_ids = user_data.get("list_ids", [])
+    if list_id not in current_ids:
+        user_data["list_ids"] = current_ids + [list_id]
+        dynamo.put_item(
+            TableName=TABLE_NAME,
+            Item=python_obj_to_dynamo_obj(user_data),
+        )
+
+
+@authenticate
+def me_route(event, user_data, body):
+    list_ids = user_data.get("list_ids", []) if user_data else []
+    return format_response(event=event, http_code=200, body={"list_ids": list_ids})
+
+
 def otp_route(event):
     body = parse_body(event["body"])
     email = body["email"].strip()
@@ -275,11 +313,12 @@ def otp_route(event):
 
     # get or create user data
     user_id = find_user_id(email)
-    user_data = get_user_data(user_id)
+    user_data = get_user_data(user_id) if user_id else None
     if user_data is None:
-        # Create user data, with a random ID as the user id, so we don't have to see people's email addresses in the database
-        pass
-    print(user_data)
+        # New user — generate a random ID so email addresses don't appear as keys in the DB
+        user_id = user_id or create_id(10)
+        dynamo.put_item(TableName=TABLE_NAME, Item=python_obj_to_dynamo_obj({"key1": "email", "key2": email, "user_id": user_id}))
+        dynamo.put_item(TableName=TABLE_NAME, Item=python_obj_to_dynamo_obj({"key1": "user", "key2": user_id}))
 
     # generate and set OTP
     otp_data = get_otp(user_id)
@@ -336,7 +375,7 @@ def login_route(event):
 
     # get user data
     user_id = find_user_id(email)
-    user_data = get_user_data(email)
+    user_data = get_user_data(user_id) if user_id else None
     if user_data is None:
         return format_response(event=event, http_code=500, body="No user exists")
 
@@ -379,6 +418,6 @@ def login_route(event):
         },
         headers={
             "x-csrf-token": token_data["csrf"],
-            "Set-Cookie": f'{APP_NAME}-auth-token={token_data["key2"]}; Domain=.dnd.elliscode.com; Expires={date_string}; Secure; HttpOnly',
+            "Set-Cookie": f'{APP_NAME}-auth-token={token_data["key2"]}; Domain=lists.elliscode.com; Expires={date_string}; Secure; HttpOnly',
         },
     )

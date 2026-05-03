@@ -1,0 +1,378 @@
+openapi: 3.0.3
+info:
+  title: Shared List API
+  description: |
+    Backend for the KaiOS shared list app.
+    Architecture: DNS (lists.elliscode.com) → AWS API Gateway → AWS Lambda → DynamoDB
+
+    All requests must include a valid `Origin` header matching an allowed domain.
+    All endpoints use POST only — see the comment in lambda_function.py for the reasoning.
+  version: 1.0.0
+
+servers:
+  - url: https://lists.elliscode.com
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
+
+    ListItem:
+      type: object
+      description: A single item in the shared list.
+      properties:
+        updated:
+          description: Unix timestamp (int or numeric string) of the last modification. Normalized to string in responses.
+          oneOf:
+            - type: integer
+            - type: string
+              pattern: '^\d+$'
+        display:
+          type: string
+          description: Display name shown in the UI.
+        crossed:
+          type: boolean
+          description: Whether the item is crossed off.
+        deleted:
+          type: boolean
+          description: Soft-delete flag. Items are never hard-deleted; set this to true to hide them.
+      required: [updated, display, crossed, deleted]
+
+    ListMap:
+      type: object
+      description: |
+        A map of item keys to list items. The key is a stable identifier for the item
+        (e.g. "broccoli", "cheese"). Keys are chosen by the client.
+      additionalProperties:
+        $ref: '#/components/schemas/ListItem'
+
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: <APP_NAME>-auth-token
+      description: HttpOnly session cookie set by POST /login. APP_NAME is the value of the Lambda environment variable.
+
+  parameters:
+    CsrfToken:
+      name: csrf
+      in: header
+      description: CSRF token returned in the `x-csrf-token` response header from POST /login. Must also be included in the request body.
+      required: true
+      schema:
+        type: string
+
+paths:
+  /ping:
+
+    post:
+      summary: Health check
+      description: Returns "pong". No authentication required.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: pong
+        '403':
+          description: Request origin not in the allowed domain list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /list:
+    post:
+      summary: Store and merge list
+      description: |
+        Accepts the client's local copy of a list, merges it with the server copy using
+        last-write-wins by `updated` timestamp, persists the result, and returns it.
+
+        - If `list_id` is omitted, a new list is created and its ID is returned.
+        - If `list_id` is provided but doesn't exist in the DB, a new list is created under that ID.
+        - If `list_id` is provided and exists, the client list is merged into the server list.
+
+        Merge rule: for each item key, whichever side has the higher `updated` timestamp wins.
+        Items present only on the server are preserved. Items present only on the client are added.
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                csrf:
+                  type: string
+                  description: CSRF token from the `x-csrf-token` header returned at login.
+                list_id:
+                  type: string
+                  pattern: '^[a-zA-Z0-9]{10}$'
+                  description: ID of an existing list. Omit to create a new list.
+                list:
+                  $ref: '#/components/schemas/ListMap'
+              required: [csrf]
+            examples:
+              new_list:
+                summary: Create a new list
+                value:
+                  csrf: "abc123csrf0abc123csrf0abc123csrf0"
+                  list:
+                    broccoli:
+                      updated: 1746000000
+                      display: "Broccoli"
+                      crossed: false
+                      deleted: false
+              update_existing:
+                summary: Sync changes to an existing list
+                value:
+                  csrf: "abc123csrf0abc123csrf0abc123csrf0"
+                  list_id: "abc123XYZ9"
+                  list:
+                    broccoli:
+                      updated: 1746000001
+                      display: "Broccoli"
+                      crossed: true
+                      deleted: false
+      responses:
+        '200':
+          description: Merged list returned successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list_id:
+                    type: string
+                    pattern: '^[a-zA-Z0-9]{10}$'
+                    description: The list ID (same as input, or newly generated).
+                  list:
+                    $ref: '#/components/schemas/ListMap'
+                required: [list_id, list]
+              example:
+                list_id: "abc123XYZ9"
+                list:
+                  broccoli:
+                    updated: "1746000001"
+                    display: "Broccoli"
+                    crossed: true
+                    deleted: false
+        '400':
+          description: The provided `list_id` did not match the required format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid list_id"
+        '403':
+          description: |
+            Authentication or CSRF failure. Possible messages:
+            - "No active session, please log in"
+            - "Your session has expired, please log in"
+            - "Your CSRF token is invalid, your session has expired, please re log in"
+            - "Forbidden" (invalid origin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /me:
+    post:
+      summary: Get current user's list IDs
+      description: |
+        Returns the list IDs associated with the authenticated user.
+        Any list the user has successfully created or synced is tracked here,
+        so they can recover their list_id on a new device after logging in.
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                csrf:
+                  type: string
+              required: [csrf]
+            example:
+              csrf: "abc123csrf0abc123csrf0abc123csrf0"
+      responses:
+        '200':
+          description: List of list IDs associated with the user.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list_ids:
+                    type: array
+                    items:
+                      type: string
+                      pattern: '^[a-zA-Z0-9]{10}$'
+                required: [list_ids]
+              example:
+                list_ids: ["abc123XYZ9", "def456UVW0"]
+        '403':
+          description: Not authenticated or invalid CSRF token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /otp:
+    post:
+      summary: Request a one-time password
+      description: |
+        Sends a 6-digit OTP to the provided email address via SES.
+        If a valid (non-expired) OTP already exists for this email, no new email is sent
+        and the response includes a `status` field indicating that.
+
+        OTPs expire after 5 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+              required: [email]
+            example:
+              email: "user@example.com"
+      responses:
+        '200':
+          description: |
+            OTP sent, or one already exists.
+            If a new OTP was sent, the body contains only `email`.
+            If one was already pending, the body also contains a `status` message.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                    format: email
+                  status:
+                    type: string
+                    description: Only present when an OTP already existed and no new email was sent.
+                required: [email]
+              examples:
+                otp_sent:
+                  summary: OTP sent successfully
+                  value:
+                    email: "user@example.com"
+                otp_already_exists:
+                  summary: OTP already pending
+                  value:
+                    email: "user@example.com"
+                    status: "OTP already exists for user@example.com, please log in"
+        '500':
+          description: Email address failed validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid email"
+        '403':
+          description: Request origin not in the allowed domain list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /login:
+    post:
+      summary: Log in with OTP
+      description: |
+        Verifies the OTP sent by `POST /otp`. On success, sets an HttpOnly session cookie
+        and returns a CSRF token in the `x-csrf-token` response header.
+
+        Failed attempts trigger a 30-second cooldown before the next attempt is allowed.
+        The session cookie expires after ~4 months.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                otp:
+                  type: string
+                  pattern: '^\d{6}$'
+                  description: 6-digit OTP from the email.
+              required: [email, otp]
+            example:
+              email: "user@example.com"
+              otp: "482910"
+      responses:
+        '200':
+          description: Login successful. Session cookie and CSRF token are set.
+          headers:
+            Set-Cookie:
+              description: |
+                HttpOnly session cookie. Format: `<APP_NAME>-auth-token=<token>; Domain=lists.elliscode.com; Expires=...; Secure; HttpOnly`
+              schema:
+                type: string
+            x-csrf-token:
+              description: CSRF token to include as `csrf` in the body of subsequent authenticated requests.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "successfully logged in"
+        '403':
+          description: |
+            OTP incorrect, rate-limited, or invalid origin. Possible messages:
+            - "Incorrect OTP, please try again"
+            - "Please wait {N} seconds before trying to log in again"
+            - "Forbidden" (invalid origin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: |
+            No user exists for this email, or the OTP has expired. Possible messages:
+            - "No user exists"
+            - "OTP expired, please wait 30 seconds and try to log in again"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

@@ -1,5 +1,5 @@
 import json
-from input_validation import validate_schema, LIST_SCHEMA
+from shared_list.input_validation import validate_schema, LIST_SCHEMA
 
 
 def merge_list(client_list, server_list):
