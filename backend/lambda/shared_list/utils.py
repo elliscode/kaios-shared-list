@@ -13,7 +13,11 @@ from .logger import log
 APP_NAME = os.environ.get("APP_NAME")
 DOMAIN_NAMES = os.environ.get("DOMAIN_NAMES", "").split(",")
 TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME")
-GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+SES_REGION = os.environ.get("SES_REGION", "us-east-1")
+SES_SENDER_EMAIL = os.environ.get("SES_SENDER_EMAIL")
+SES_REPLY_TO_EMAIL = os.environ.get("SES_REPLY_TO_EMAIL")
+SES_TEMPLATE_NAME = os.environ.get("SES_TEMPLATE_NAME")
+COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN")
 EMAIL_REGEX = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 OTP_TIMEOUT = 5
 
@@ -22,7 +26,7 @@ lowercase_letters = "abcdefghijklmnopqrstuvwxyz"
 uppercase_letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 dynamo = boto3.client("dynamodb")
-ses = boto3.client("ses", region_name="us-east-1")
+ses = boto3.client("ses", region_name=SES_REGION)
 
 
 def has_invalid_domain(event):
@@ -191,17 +195,17 @@ def send_email(to_address, otp_code, expiration_time):
 
     # Send templated email
     response = ses.send_templated_email(
-        Source="no-reply@elliscode.com",  # verified sender
+        Source=SES_SENDER_EMAIL,
         Destination={
             "ToAddresses": [to_address]  # replace with your email
         },
-        Template="elliscode-otp-template",
+        Template=SES_TEMPLATE_NAME,
         TemplateData=json.dumps({
             "code": str(otp_code),
             "minutes": str(expiration_time),
         }),
         # Optional: reply-to
-        ReplyToAddresses=["support@elliscode.com"]
+        ReplyToAddresses=[SES_REPLY_TO_EMAIL]
     )
 
     # Print response from SES
@@ -418,6 +422,6 @@ def login_route(event):
         },
         headers={
             "x-csrf-token": token_data["csrf"],
-            "Set-Cookie": f'{APP_NAME}-auth-token={token_data["key2"]}; Domain=lists.elliscode.com; Expires={date_string}; Secure; HttpOnly',
+            "Set-Cookie": f'{APP_NAME}-auth-token={token_data["key2"]}; Domain={COOKIE_DOMAIN}; Expires={date_string}; Secure; HttpOnly',
         },
     )
