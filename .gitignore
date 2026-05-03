@@ -1,3 +1,33 @@
+# Archives
 *.zip
+
+# Python
 .venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# AWS
+.aws-sam/
+samconfig.toml
+cdk.out/
+.cdk.staging/
+
+# Editors
 .idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.*
