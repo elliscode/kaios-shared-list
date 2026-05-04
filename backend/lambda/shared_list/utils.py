@@ -159,9 +159,10 @@ def get_user_data(user_id):
 def authenticate(func):
     def wrapper_func(*args, **kwargs):
         event = args[0]
-        if "cookie" not in event["headers"]:
+        cookies_list = event.get("cookies") or []
+        cookie_string = event["headers"].get("cookie") or "; ".join(cookies_list)
+        if not cookie_string:
             return format_response(event=event, http_code=403, body="No active session, please log in")
-        cookie_string = event["headers"]["cookie"]
         cookie = parse_cookie(cookie_string)
         body = parse_body(event["body"])
         csrf_token = body.get("csrf")
