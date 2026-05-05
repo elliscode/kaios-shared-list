@@ -277,8 +277,8 @@ def get_list(list_id):
     return None
 
 
-def store_list(list_id, list_data):
-    python_data = {"key1": "list", "key2": list_id, "list": list_data}
+def store_list(list_id, list_data, name):
+    python_data = {"key1": "list", "key2": list_id, "name": name, "list": list_data}
     dynamo.put_item(
         TableName=TABLE_NAME,
         Item=python_obj_to_dynamo_obj(python_data),
@@ -286,13 +286,23 @@ def store_list(list_id, list_data):
     return python_data
 
 
-def add_list_id_to_user(user_id, list_id):
+def expire_list(list_id, days=30):
+    dynamo.update_item(
+        TableName=TABLE_NAME,
+        Key=python_obj_to_dynamo_obj({"key1": "list", "key2": list_id}),
+        UpdateExpression="SET expiration = :exp",
+        ExpressionAttributeValues={":exp": {"N": str(int(time.time()) + days * 24 * 60 * 60)}},
+    )
+
+
+def add_list_to_user(user_id, list_id, name):
     user_data = get_user_data(user_id)
     if user_data is None:
         return
-    current_ids = user_data.get("list_ids", [])
-    if list_id not in current_ids:
-        user_data["list_ids"] = current_ids + [list_id]
+    list_names = user_data.get("list_names", {})
+    if list_names.get(name) != list_id:
+        list_names[name] = list_id
+        user_data["list_names"] = list_names
         dynamo.put_item(
             TableName=TABLE_NAME,
             Item=python_obj_to_dynamo_obj(user_data),
@@ -301,20 +311,18 @@ def add_list_id_to_user(user_id, list_id):
 
 @authenticate
 def me_route(event, user_data, body):
-    list_ids = user_data.get("list_ids", []) if user_data else []
-    return format_response(event=event, http_code=200, body={"list_ids": list_ids})
+    list_names = user_data.get("list_names", {}) if user_data else {}
+    return format_response(event=event, http_code=200, body={"list_names": list_names})
 
 
 def otp_route(event):
     body = parse_body(event["body"])
-    email = body["email"].strip()
+    email = (body.get("email") or "").strip()
 
+    if not email:
+        return format_response(event=event, http_code=400, body="email is required")
     if not is_valid_email_format(email):
-        return format_response(
-            event=event,
-            http_code=500,
-            body="Invalid email",
-        )
+        return format_response(event=event, http_code=400, body="Invalid email")
 
     # get or create user data
     user_id = find_user_id(email)
@@ -373,8 +381,11 @@ def track_token(token_data):
 
 def login_route(event):
     body = parse_body(event["body"])
-    email = body["email"].strip()
-    submitted_otp = body["otp"].strip()
+    email = (body.get("email") or "").strip()
+    submitted_otp = (body.get("otp") or "").strip()
+
+    if not email or not submitted_otp:
+        return format_response(event=event, http_code=400, body="email and otp are required")
 
     print(f"{email} attempted to log in with {submitted_otp}")
 
@@ -382,14 +393,14 @@ def login_route(event):
     user_id = find_user_id(email)
     user_data = get_user_data(user_id) if user_id else None
     if user_data is None:
-        return format_response(event=event, http_code=500, body="No user exists")
+        return format_response(event=event, http_code=400, body="No user exists")
 
     # get otp
     otp_data = get_otp(user_id)
     if otp_data is None or otp_data["expiration"] < int(time.time()):
         return format_response(
             event=event,
-            http_code=500,
+            http_code=400,
             body="OTP expired, please wait 30 seconds and try to log in again",
         )
     diff = otp_data["last_failure"] + 30 - int(time.time())

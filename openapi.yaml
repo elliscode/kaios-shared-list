@@ -97,9 +97,9 @@ paths:
         Accepts the client's local copy of a list, merges it with the server copy using
         last-write-wins by `updated` timestamp, persists the result, and returns it.
 
-        - If `list_id` is omitted, a new list is created and its ID is returned.
-        - If `list_id` is provided but doesn't exist in the DB, a new list is created under that ID.
-        - If `list_id` is provided and exists, the client list is merged into the server list.
+        - `name` is the user-facing identifier for the list, unique per user.
+        - If no list with that name exists for the user, a new list is created and assigned a random ID.
+        - If a list with that name already exists, the client list is merged into the server list.
 
         Merge rule: for each item key, whichever side has the higher `updated` timestamp wins.
         Items present only on the server are preserved. Items present only on the client are added.
@@ -115,18 +115,18 @@ paths:
                 csrf:
                   type: string
                   description: CSRF token from the `x-csrf-token` header returned at login.
-                list_id:
+                name:
                   type: string
-                  pattern: '^[a-zA-Z0-9]{10}$'
-                  description: ID of an existing list. Omit to create a new list.
+                  description: User-facing name of the list. Unique per user.
                 list:
                   $ref: '#/components/schemas/ListMap'
-              required: [csrf]
+              required: [csrf, name]
             examples:
               new_list:
                 summary: Create a new list
                 value:
                   csrf: "abc123csrf0abc123csrf0abc123csrf0"
+                  name: "Groceries"
                   list:
                     broccoli:
                       updated: 1746000000
@@ -137,7 +137,7 @@ paths:
                 summary: Sync changes to an existing list
                 value:
                   csrf: "abc123csrf0abc123csrf0abc123csrf0"
-                  list_id: "abc123XYZ9"
+                  name: "Groceries"
                   list:
                     broccoli:
                       updated: 1746000001
@@ -155,12 +155,16 @@ paths:
                   list_id:
                     type: string
                     pattern: '^[a-zA-Z0-9]{10}$'
-                    description: The list ID (same as input, or newly generated).
+                    description: The internal list ID (newly generated or existing).
+                  name:
+                    type: string
+                    description: The name of the list as supplied in the request.
                   list:
                     $ref: '#/components/schemas/ListMap'
-                required: [list_id, list]
+                required: [list_id, name, list]
               example:
                 list_id: "abc123XYZ9"
+                name: "Groceries"
                 list:
                   broccoli:
                     updated: "1746000001"
@@ -168,13 +172,13 @@ paths:
                     crossed: true
                     deleted: false
         '400':
-          description: The provided `list_id` did not match the required format.
+          description: The `name` field was missing or invalid.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                message: "Invalid list_id"
+                message: "name is required"
         '403':
           description: |
             Authentication or CSRF failure. Possible messages:
@@ -193,13 +197,95 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /share:
+    post:
+      summary: Accept a shared list
+      description: |
+        Accepts a shared list by its universal list ID. If the user already has a list
+        with the same name, their existing items are merged into the shared list
+        (last-write-wins by `updated` timestamp), and the user's `list_names` entry
+        is updated to point to the shared list ID.
+
+        If there is no name collision, the shared list is simply added to the user's `list_names`.
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                csrf:
+                  type: string
+                  description: CSRF token from the `x-csrf-token` header returned at login.
+                list_id:
+                  type: string
+                  pattern: '^[a-zA-Z0-9]{10}$'
+                  description: The universal ID of the list being shared.
+              required: [csrf, list_id]
+            example:
+              csrf: "abc123csrf0abc123csrf0abc123csrf0"
+              list_id: "abc123XYZ9"
+      responses:
+        '200':
+          description: Share accepted. Returns the (merged) list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  list_id:
+                    type: string
+                    pattern: '^[a-zA-Z0-9]{10}$'
+                  name:
+                    type: string
+                  list:
+                    $ref: '#/components/schemas/ListMap'
+                required: [list_id, name, list]
+              example:
+                list_id: "abc123XYZ9"
+                name: "Groceries"
+                list:
+                  broccoli:
+                    updated: "1746000001"
+                    display: "Broccoli"
+                    crossed: false
+                    deleted: false
+        '400':
+          description: Missing or invalid `list_id`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not authenticated or invalid CSRF token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No list found with the given ID.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "List not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /me:
     post:
-      summary: Get current user's list IDs
+      summary: Get current user's lists
       description: |
-        Returns the list IDs associated with the authenticated user.
+        Returns the list names and their corresponding IDs for the authenticated user.
         Any list the user has successfully created or synced is tracked here,
-        so they can recover their list_id on a new device after logging in.
+        so they can recover their lists on a new device after logging in.
       security:
         - SessionCookie: []
       requestBody:
@@ -216,20 +302,22 @@ paths:
               csrf: "abc123csrf0abc123csrf0abc123csrf0"
       responses:
         '200':
-          description: List of list IDs associated with the user.
+          description: Map of list names to list IDs for the user.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  list_ids:
-                    type: array
-                    items:
+                  list_names:
+                    type: object
+                    additionalProperties:
                       type: string
                       pattern: '^[a-zA-Z0-9]{10}$'
-                required: [list_ids]
+                required: [list_names]
               example:
-                list_ids: ["abc123XYZ9", "def456UVW0"]
+                list_names:
+                  Groceries: "abc123XYZ9"
+                  TODO: "def456UVW0"
         '403':
           description: Not authenticated or invalid CSRF token.
           content:
@@ -293,14 +381,19 @@ paths:
                   value:
                     email: "user@example.com"
                     status: "OTP already exists for user@example.com, please log in"
-        '500':
-          description: Email address failed validation.
+        '400':
+          description: Missing or invalid email address.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                message: "Invalid email"
+              examples:
+                missing:
+                  value:
+                    message: "email is required"
+                invalid:
+                  value:
+                    message: "Invalid email"
         '403':
           description: Request origin not in the allowed domain list.
           content:
@@ -367,9 +460,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
+        '400':
           description: |
-            No user exists for this email, or the OTP has expired. Possible messages:
+            Missing fields, unrecognised email, or expired OTP. Possible messages:
+            - "email and otp are required"
             - "No user exists"
             - "OTP expired, please wait 30 seconds and try to log in again"
           content:
