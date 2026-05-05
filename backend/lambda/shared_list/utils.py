@@ -273,23 +273,19 @@ def get_list(list_id):
         TableName=TABLE_NAME,
     )
     if "Item" in result:
-        record = dynamo_obj_to_python_obj(result["Item"])
-        if "expiration" in record:
-            unexpire_list(list_id)
-        return record
+        expire_list(list_id)
+        return dynamo_obj_to_python_obj(result["Item"])
     return None
 
 
-def unexpire_list(list_id):
-    dynamo.update_item(
-        TableName=TABLE_NAME,
-        Key=python_obj_to_dynamo_obj({"key1": "list", "key2": list_id}),
-        UpdateExpression="REMOVE expiration",
-    )
-
-
 def store_list(list_id, list_data, name):
-    python_data = {"key1": "list", "key2": list_id, "name": name, "list": list_data}
+    python_data = {
+        "key1": "list",
+        "key2": list_id,
+        "name": name,
+        "list": list_data,
+        "expiration": int(time.time()) + 365 * 24 * 60 * 60,
+    }
     dynamo.put_item(
         TableName=TABLE_NAME,
         Item=python_obj_to_dynamo_obj(python_data),
@@ -297,7 +293,7 @@ def store_list(list_id, list_data, name):
     return python_data
 
 
-def expire_list(list_id, days=30):
+def expire_list(list_id, days=365):
     dynamo.update_item(
         TableName=TABLE_NAME,
         Key=python_obj_to_dynamo_obj({"key1": "list", "key2": list_id}),

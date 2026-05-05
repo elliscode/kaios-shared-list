@@ -1,4 +1,4 @@
-from shared_list.utils import authenticate, format_response, get_list, store_list, create_id, add_list_to_user, remove_list_from_user, expire_list
+from shared_list.utils import authenticate, format_response, get_list, store_list, create_id, add_list_to_user, remove_list_from_user
 from shared_list.list_merge import merge_list
 from shared_list.input_validation import validate_id
 
@@ -58,7 +58,6 @@ def accept_share_route(event, user_data, body):
         existing_items = existing_record.get("list", {}) if existing_record else {}
         merged_items, _ = merge_list(existing_items, shared_items)
         store_list(list_id, merged_items, name)
-        expire_list(existing_list_id)
     else:
         merged_items = shared_items
 
@@ -80,6 +79,5 @@ def delete_list_route(event, user_data, body):
         return format_response(event=event, http_code=404, body="List not found")
 
     remove_list_from_user(user_data["key2"], name)
-    expire_list(list_id)
 
     return format_response(event=event, http_code=200, body={"name": name})
