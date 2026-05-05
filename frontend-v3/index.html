@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Shared List</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/root.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/softkey.css">
+  <link rel="stylesheet" href="css/input.css">
+  <link rel="stylesheet" href="css/list.css">
+</head>
+<body>
+  <div id="root">
+
+    <!-- Panel: Enter email -->
+    <div id="panel-email" class="panel" active="false">
+      <div class="header"><h1>Sign In</h1></div>
+      <div class="panel-content">
+        <div class="input-wrap">
+          <input id="input-email" type="email" placeholder=" "
+                 autocomplete="email" nav-selectable="true">
+          <label for="input-email">Email address</label>
+        </div>
+        <p class="hint">We'll send a one-time code to your email.</p>
+      </div>
+    </div>
+
+    <!-- Panel: Enter OTP -->
+    <div id="panel-otp" class="panel" active="false">
+      <div class="header"><h1>Enter Code</h1></div>
+      <div class="panel-content">
+        <p id="otp-hint" class="hint"></p>
+        <div class="input-wrap">
+          <input id="input-otp" type="tel" inputmode="numeric"
+                 placeholder=" " maxlength="6" nav-selectable="true">
+          <label for="input-otp">6-digit code</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel: List of lists -->
+    <div id="panel-lists" class="panel" active="false">
+      <div class="header"><h1>My Lists</h1></div>
+      <div class="panel-content">
+        <ul id="lists-ul" class="item-list"></ul>
+        <p id="lists-empty" class="hint" style="display:none">No lists yet.</p>
+      </div>
+    </div>
+
+    <!-- Panel: Single list -->
+    <div id="panel-list" class="panel" active="false">
+      <div class="header"><h1 id="list-title">List</h1></div>
+      <div class="panel-content">
+        <ul id="list-ul" class="item-list"></ul>
+        <p id="list-empty" class="hint" style="display:none">Nothing here.</p>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="status" class="status-toast"></div>
+
+    <!-- Softkey bar -->
+    <div id="softkey">
+      <label id="sk-left"></label>
+      <label id="sk-center">SELECT</label>
+      <label id="sk-right"></label>
+    </div>
+
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

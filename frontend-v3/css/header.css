@@ -1,0 +1,14 @@
+.header {
+  background: #6a0080;
+  color: #fff;
+  padding: 6px 8px;
+  flex-shrink: 0;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
