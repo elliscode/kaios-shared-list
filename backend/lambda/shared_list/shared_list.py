@@ -25,12 +25,12 @@ def store_and_merge_list_route(event, user_data, body):
     if not list_id:
         list_id = create_id(10)
 
-    store_list(list_id, merged_list, name)
+    stored = store_list(list_id, merged_list, name)
 
     if user_data:
         add_list_to_user(user_data["key2"], list_id, name)
 
-    return format_response(event=event, http_code=200, body={"list_id": list_id, "name": name, "list": merged_list})
+    return format_response(event=event, http_code=200, body={"list_id": list_id, "name": name, "list": stored["list"]})
 
 
 @authenticate

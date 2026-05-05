@@ -20,6 +20,7 @@ SES_TEMPLATE_NAME = os.environ.get("SES_TEMPLATE_NAME")
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN")
 EMAIL_REGEX = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 OTP_TIMEOUT = 5
+DELETED_ITEM_RETENTION_DAYS = 4 * 30
 
 digits = "0123456789"
 lowercase_letters = "abcdefghijklmnopqrstuvwxyz"
@@ -279,6 +280,11 @@ def get_list(list_id):
 
 
 def store_list(list_id, list_data, name):
+    cutoff = int(time.time()) - DELETED_ITEM_RETENTION_DAYS * 24 * 60 * 60
+    list_data = {
+        k: v for k, v in list_data.items()
+        if not (v.get("deleted") and int(v["updated"]) < cutoff)
+    }
     python_data = {
         "key1": "list",
         "key2": list_id,
