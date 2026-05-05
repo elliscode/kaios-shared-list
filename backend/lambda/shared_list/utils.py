@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import json
 import secrets
 import time
@@ -13,6 +15,7 @@ from .logger import log
 APP_NAME = os.environ.get("APP_NAME")
 DOMAIN_NAMES = os.environ.get("DOMAIN_NAMES", "").split(",")
 TABLE_NAME = os.environ.get("DYNAMODB_TABLE_NAME")
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 SES_REGION = os.environ.get("SES_REGION", "us-east-1")
 SES_SENDER_EMAIL = os.environ.get("SES_SENDER_EMAIL")
 SES_REPLY_TO_EMAIL = os.environ.get("SES_REPLY_TO_EMAIL")
@@ -268,6 +271,29 @@ def delete_otp(user_id):
     )
 
 
+def _keystream(key_bytes, nonce, length):
+    stream = b''
+    counter = 0
+    while len(stream) < length:
+        stream += hashlib.sha256(key_bytes + nonce + counter.to_bytes(4, 'big')).digest()
+        counter += 1
+    return stream[:length]
+
+def encrypt_field(value):
+    key_bytes = bytes.fromhex(ENCRYPTION_KEY)
+    payload = (value if isinstance(value, str) else json.dumps(value)).encode()
+    nonce = secrets.token_bytes(16)
+    ciphertext = bytes(a ^ b for a, b in zip(payload, _keystream(key_bytes, nonce, len(payload))))
+    return base64.b64encode(nonce + ciphertext).decode()
+
+def decrypt_field(encrypted, as_json=False):
+    key_bytes = bytes.fromhex(ENCRYPTION_KEY)
+    data = base64.b64decode(encrypted)
+    nonce, ciphertext = data[:16], data[16:]
+    plaintext = bytes(a ^ b for a, b in zip(ciphertext, _keystream(key_bytes, nonce, len(ciphertext)))).decode()
+    return json.loads(plaintext) if as_json else plaintext
+
+
 def get_list(list_id):
     result = dynamo.get_item(
         Key=python_obj_to_dynamo_obj({"key1": "list", "key2": list_id}),
@@ -275,7 +301,10 @@ def get_list(list_id):
     )
     if "Item" in result:
         expire_list(list_id)
-        return dynamo_obj_to_python_obj(result["Item"])
+        record = dynamo_obj_to_python_obj(result["Item"])
+        record["name"] = decrypt_field(record["name"])
+        record["list"] = decrypt_field(record["list"], as_json=True)
+        return record
     return None
 
 
@@ -288,15 +317,15 @@ def store_list(list_id, list_data, name):
     python_data = {
         "key1": "list",
         "key2": list_id,
-        "name": name,
-        "list": list_data,
+        "name": encrypt_field(name),
+        "list": encrypt_field(list_data),
         "expiration": int(time.time()) + 365 * 24 * 60 * 60,
     }
     dynamo.put_item(
         TableName=TABLE_NAME,
         Item=python_obj_to_dynamo_obj(python_data),
     )
-    return python_data
+    return {"name": name, "list": list_data}
 
 
 def expire_list(list_id, days=365):
@@ -308,14 +337,21 @@ def expire_list(list_id, days=365):
     )
 
 
+def get_user_list_names(user_data):
+    raw = user_data.get("list_names") if user_data else None
+    if not raw:
+        return {}
+    return decrypt_field(raw, as_json=True)
+
+
 def remove_list_from_user(user_id, name):
     user_data = get_user_data(user_id)
     if user_data is None:
         return
-    list_names = user_data.get("list_names", {})
+    list_names = get_user_list_names(user_data)
     if name in list_names:
         del list_names[name]
-        user_data["list_names"] = list_names
+        user_data["list_names"] = encrypt_field(list_names)
         dynamo.put_item(
             TableName=TABLE_NAME,
             Item=python_obj_to_dynamo_obj(user_data),
@@ -326,10 +362,10 @@ def add_list_to_user(user_id, list_id, name):
     user_data = get_user_data(user_id)
     if user_data is None:
         return
-    list_names = user_data.get("list_names", {})
+    list_names = get_user_list_names(user_data)
     if list_names.get(name) != list_id:
         list_names[name] = list_id
-        user_data["list_names"] = list_names
+        user_data["list_names"] = encrypt_field(list_names)
         dynamo.put_item(
             TableName=TABLE_NAME,
             Item=python_obj_to_dynamo_obj(user_data),
@@ -338,8 +374,7 @@ def add_list_to_user(user_id, list_id, name):
 
 @authenticate
 def me_route(event, user_data, body):
-    list_names = user_data.get("list_names", {}) if user_data else {}
-    return format_response(event=event, http_code=200, body={"list_names": list_names})
+    return format_response(event=event, http_code=200, body={"list_names": get_user_list_names(user_data)})
 
 
 def otp_route(event):

@@ -23,6 +23,26 @@ This means the app works offline naturally — local state is always the working
 
 Call `POST /share` with a `list_id` to accept a shared list. If the user already has a list with the same name, their local items are merged into the shared list and their old list is expired (TTL 30 days). After accepting, the shared `list_id` becomes the canonical ID for that name.
 
+### Environment variables
+
+| Variable | Description |
+|---|---|
+| `APP_NAME` | App identifier, used to name the auth cookie |
+| `DYNAMODB_TABLE_NAME` | DynamoDB table name |
+| `DOMAIN_NAMES` | Comma-separated allowed origins (e.g. `https://lists.elliscode.com`) |
+| `ENCRYPTION_KEY` | Fernet key for encrypting list contents at rest |
+| `SES_REGION` | AWS region for SES (default: `us-east-1`) |
+| `SES_SENDER_EMAIL` | Verified SES sender address |
+| `SES_REPLY_TO_EMAIL` | Reply-to address for OTP emails |
+| `SES_TEMPLATE_NAME` | SES template name for OTP emails |
+| `COOKIE_DOMAIN` | Domain set on the auth cookie |
+
+Generate the `ENCRYPTION_KEY` with:
+
+```bash
+python3 -c "import secrets; print(secrets.token_hex(32))"
+```
+
 ## Frontend
 
 TODO

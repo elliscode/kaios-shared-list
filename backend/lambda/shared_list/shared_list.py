@@ -1,4 +1,4 @@
-from shared_list.utils import authenticate, format_response, get_list, store_list, create_id, add_list_to_user, remove_list_from_user
+from shared_list.utils import authenticate, format_response, get_list, store_list, create_id, add_list_to_user, remove_list_from_user, get_user_list_names
 from shared_list.list_merge import merge_list
 from shared_list.input_validation import validate_id
 
@@ -11,7 +11,7 @@ def store_and_merge_list_route(event, user_data, body):
     if not name or not isinstance(name, str):
         return format_response(event=event, http_code=400, body="name is required")
 
-    list_names = user_data.get("list_names", {}) if user_data else {}
+    list_names = get_user_list_names(user_data)
     list_id = list_names.get(name)
 
     server_list = {}
@@ -30,7 +30,7 @@ def store_and_merge_list_route(event, user_data, body):
     if user_data:
         add_list_to_user(user_data["key2"], list_id, name)
 
-    return format_response(event=event, http_code=200, body={"list_id": list_id, "name": name, "list": stored["list"]})
+    return format_response(event=event, http_code=200, body={"list_id": list_id, "name": name, "list": stored["list"]}, log_this=False)
 
 
 @authenticate
@@ -50,7 +50,7 @@ def accept_share_route(event, user_data, body):
     name = shared_record.get("name")
     shared_items = shared_record.get("list", {})
 
-    list_names = user_data.get("list_names", {}) if user_data else {}
+    list_names = get_user_list_names(user_data)
     existing_list_id = list_names.get(name)
 
     if existing_list_id and existing_list_id != list_id:
@@ -64,7 +64,7 @@ def accept_share_route(event, user_data, body):
     if user_data:
         add_list_to_user(user_data["key2"], list_id, name)
 
-    return format_response(event=event, http_code=200, body={"list_id": list_id, "name": name, "list": merged_items})
+    return format_response(event=event, http_code=200, body={"list_id": list_id, "name": name, "list": merged_items}, log_this=False)
 
 
 @authenticate
@@ -73,7 +73,7 @@ def delete_list_route(event, user_data, body):
     if not name or not isinstance(name, str):
         return format_response(event=event, http_code=400, body="name is required")
 
-    list_names = user_data.get("list_names", {}) if user_data else {}
+    list_names = get_user_list_names(user_data)
     list_id = list_names.get(name)
     if not list_id:
         return format_response(event=event, http_code=404, body="List not found")
