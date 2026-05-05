@@ -17,7 +17,7 @@ def merge_list(client_list, server_list):
     """
     client_list = validate_schema(client_list, LIST_SCHEMA)
     server_list = validate_schema(server_list, LIST_SCHEMA)
-    if not client_list or not server_list:
+    if not client_list:
         return (server_list or {}, {})
 
     merged_list = server_list.copy()
