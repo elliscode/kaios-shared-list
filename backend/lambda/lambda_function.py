@@ -10,7 +10,7 @@ from shared_list.utils import (
     login_route,
     me_route,
 )
-from shared_list.shared_list import store_and_merge_list_route, accept_share_route
+from shared_list.shared_list import store_and_merge_list_route, accept_share_route, delete_list_route
 
 
 def lambda_handler(event, context):
@@ -45,4 +45,6 @@ def route(event):
         return store_and_merge_list_route(event)
     if path_equals(event=event, method="POST", path="/share"):
         return accept_share_route(event)
+    if path_equals(event=event, method="POST", path="/delete"):
+        return delete_list_route(event)
     return format_response(event=event, http_code=403, body={"message": "Forbidden"})

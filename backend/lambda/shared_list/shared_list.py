@@ -1,4 +1,4 @@
-from shared_list.utils import authenticate, format_response, get_list, store_list, create_id, add_list_to_user, expire_list
+from shared_list.utils import authenticate, format_response, get_list, store_list, create_id, add_list_to_user, remove_list_from_user, expire_list
 from shared_list.list_merge import merge_list
 from shared_list.input_validation import validate_id
 
@@ -66,3 +66,20 @@ def accept_share_route(event, user_data, body):
         add_list_to_user(user_data["key2"], list_id, name)
 
     return format_response(event=event, http_code=200, body={"list_id": list_id, "name": name, "list": merged_items})
+
+
+@authenticate
+def delete_list_route(event, user_data, body):
+    name = body.get("name")
+    if not name or not isinstance(name, str):
+        return format_response(event=event, http_code=400, body="name is required")
+
+    list_names = user_data.get("list_names", {}) if user_data else {}
+    list_id = list_names.get(name)
+    if not list_id:
+        return format_response(event=event, http_code=404, body="List not found")
+
+    remove_list_from_user(user_data["key2"], name)
+    expire_list(list_id)
+
+    return format_response(event=event, http_code=200, body={"name": name})

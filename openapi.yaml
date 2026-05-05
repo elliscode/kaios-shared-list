@@ -279,6 +279,72 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /delete:
+    post:
+      summary: Delete a list
+      description: |
+        Removes the list from the authenticated user's `list_names` and sets a 30-day TTL
+        on the list record. The list is not immediately hard-deleted — if any other user
+        loads the list before the TTL fires, the TTL is automatically cleared and the list
+        survives. The list is only hard-deleted by DynamoDB after 30 days if no one accesses it.
+      security:
+        - SessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                csrf:
+                  type: string
+                name:
+                  type: string
+                  description: Name of the list to delete.
+              required: [csrf, name]
+            example:
+              csrf: "abc123csrf0abc123csrf0abc123csrf0"
+              name: "Groceries"
+      responses:
+        '200':
+          description: List removed from user and marked for expiry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                required: [name]
+              example:
+                name: "Groceries"
+        '400':
+          description: Missing or invalid `name`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Not authenticated or invalid CSRF token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No list with that name found for this user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "List not found"
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /me:
     post:
       summary: Get current user's lists
