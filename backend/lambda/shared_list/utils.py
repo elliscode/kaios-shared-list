@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import hmac
 import json
 import secrets
 import time
@@ -139,7 +140,7 @@ def delete_token(token_id):
 
 def find_user_id(email):
     email_data_boto = dynamo.get_item(
-        Key=python_obj_to_dynamo_obj({"key1": "email", "key2": email}),
+        Key=python_obj_to_dynamo_obj({"key1": "email", "key2": hash_email(email)}),
         TableName=TABLE_NAME,
     )
     if "Item" not in email_data_boto:
@@ -294,6 +295,10 @@ def decrypt_field(encrypted, as_json=False):
     return json.loads(plaintext) if as_json else plaintext
 
 
+def hash_email(email):
+    return hmac.new(ENCRYPTION_KEY.encode(), email.lower().encode(), hashlib.sha256).hexdigest()
+
+
 def get_list(list_id):
     result = dynamo.get_item(
         Key=python_obj_to_dynamo_obj({"key1": "list", "key2": list_id}),
@@ -392,7 +397,7 @@ def otp_route(event):
     if user_data is None:
         # New user — generate a random ID so email addresses don't appear as keys in the DB
         user_id = user_id or create_id(10)
-        dynamo.put_item(TableName=TABLE_NAME, Item=python_obj_to_dynamo_obj({"key1": "email", "key2": email, "user_id": user_id}))
+        dynamo.put_item(TableName=TABLE_NAME, Item=python_obj_to_dynamo_obj({"key1": "email", "key2": hash_email(email), "user_id": user_id}))
         dynamo.put_item(TableName=TABLE_NAME, Item=python_obj_to_dynamo_obj({"key1": "user", "key2": user_id}))
 
     # generate and set OTP

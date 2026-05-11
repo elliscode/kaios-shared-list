@@ -6,10 +6,53 @@ var state = {
   email: null,
   csrf: localStorage.getItem('csrf') || null,
   allLists: {},
+  listCache: {},
   currentListName: null,
   currentListId: null,
   currentList: {}
 };
+
+// ─── IndexedDB persistence ────────────────────────────────────────────────────
+
+var db = null;
+var DB_NAME = 'shared-list-cache';
+var DB_VERSION = 1;
+var DB_STORE = 'lists';
+
+function openDB(callback) {
+  var req = indexedDB.open(DB_NAME, DB_VERSION);
+  req.onupgradeneeded = function (e) {
+    e.target.result.createObjectStore(DB_STORE, { keyPath: 'name' });
+  };
+  req.onsuccess = function (e) {
+    db = e.target.result;
+    callback(null);
+  };
+  req.onerror = function () {
+    callback(req.error);
+  };
+}
+
+function dbLoadAll(callback) {
+  if (!db) { callback({}); return; }
+  var req = db.transaction(DB_STORE, 'readonly').objectStore(DB_STORE).getAll();
+  req.onsuccess = function () {
+    var cache = {};
+    (req.result || []).forEach(function (row) { cache[row.name] = row; });
+    callback(cache);
+  };
+  req.onerror = function () { callback({}); };
+}
+
+function dbSaveList(name, listId, list) {
+  if (!db) return;
+  db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put({ name: name, list_id: listId, list: list });
+}
+
+function dbDeleteList(name) {
+  if (!db) return;
+  db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).delete(name);
+}
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -146,6 +189,10 @@ function handleSoftLeft() {
   if (!panel) return;
   if (panel.id === 'panel-otp') {
     showEmailPanel();
+  } else if (panel.id === 'panel-new-list') {
+    showListsPanel();
+  } else if (panel.id === 'panel-new-item') {
+    showListPanel(state.currentListName);
   } else if (panel.id === 'panel-list') {
     showListsPanel();
   }
@@ -154,8 +201,10 @@ function handleSoftLeft() {
 function handleSoftRight() {
   var panel = activePanel();
   if (!panel) return;
-  if (panel.id === 'panel-list') {
-    doSweep();
+  if (panel.id === 'panel-lists') {
+    showNewListPanel();
+  } else if (panel.id === 'panel-list') {
+    showNewItemPanel();
   }
 }
 
@@ -236,10 +285,38 @@ document.getElementById('input-otp').addEventListener('keydown', function (e) {
 // ─── Screen: Lists ────────────────────────────────────────────────────────────
 
 function showListsPanel() {
+  Object.keys(state.listCache).forEach(function (name) {
+    state.allLists[name] = state.listCache[name].list_id;
+  });
   showPanel('panel-lists');
-  setSoftkeys('', 'OPEN', '');
+  setSoftkeys('', 'OPEN', 'New');
+  renderLists();
   loadLists();
 }
+
+// ─── Screen: New List ─────────────────────────────────────────────────────────
+
+function showNewListPanel() {
+  document.getElementById('input-list-name').value = '';
+  showPanel('panel-new-list');
+  setSoftkeys('Back', 'CREATE', '');
+}
+
+function submitNewList() {
+  var name = document.getElementById('input-list-name').value.trim();
+  if (!name) {
+    showStatus('Enter a list name', true);
+    return;
+  }
+  openList(name);
+}
+
+document.getElementById('input-list-name').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    submitNewList();
+  }
+});
 
 function loadLists() {
   post('/me', { csrf: state.csrf }).then(function (res) {
@@ -251,7 +328,15 @@ function loadLists() {
     }
     return res.json().then(function (data) {
       state.allLists = data.list_names || {};
-      renderLists();
+      if (activePanel() && activePanel().id === 'panel-lists') {
+        var cur = focused();
+        var focusedName = cur ? cur.getAttribute('data-list-name') : null;
+        renderLists();
+        if (focusedName) {
+          var el = document.querySelector('[data-list-name="' + focusedName + '"]');
+          if (el) setFocus(el);
+        }
+      }
     });
   }).catch(function () {
     showStatus('Could not load lists', true);
@@ -287,8 +372,12 @@ function renderLists() {
 }
 
 function openList(name) {
+  var cached = state.listCache[name];
   state.currentListName = name;
-  state.currentListId = state.allLists[name];
+  state.currentListId = cached ? cached.list_id : state.allLists[name];
+  state.currentList = cached ? cached.list : {};
+  showListPanel(name);
+
   post('/list', { csrf: state.csrf, name: name, list: {} }).then(function (res) {
     if (res.status === 403) {
       state.csrf = null;
@@ -297,12 +386,16 @@ function openList(name) {
       return;
     }
     return res.json().then(function (data) {
-      state.currentList = data.list || {};
       state.currentListId = data.list_id;
-      showListPanel(name);
+      state.currentList = data.list || {};
+      state.listCache[name] = { name: name, list_id: data.list_id, list: state.currentList };
+      dbSaveList(name, data.list_id, state.currentList);
+      if (activePanel() && activePanel().id === 'panel-list') {
+        softRenderListItems();
+      }
     });
   }).catch(function () {
-    showStatus('Could not open list', true);
+    showStatus('Could not sync list', true);
   });
 }
 
@@ -311,8 +404,18 @@ function openList(name) {
 function showListPanel(name) {
   document.getElementById('list-title').textContent = name;
   showPanel('panel-list');
-  setSoftkeys('Back', 'CHECK', 'Sweep');
+  setSoftkeys('Back', 'CHECK', 'Add');
   renderListItems();
+}
+
+function softRenderListItems() {
+  var cur = focused();
+  var focusedKey = cur ? cur.getAttribute('data-item-key') : null;
+  renderListItems();
+  if (focusedKey) {
+    var el = document.querySelector('[data-item-key="' + focusedKey + '"]');
+    if (el) setFocus(el);
+  }
 }
 
 function renderListItems() {
@@ -349,6 +452,16 @@ function renderListItems() {
     ul.appendChild(li);
   });
 
+  var hasCrossed = items.some(function (pair) { return pair[1].crossed; });
+  if (hasCrossed) {
+    var sweep = document.createElement('li');
+    sweep.className = 'list-row sweep-row';
+    sweep.setAttribute('nav-selectable', 'true');
+    sweep.textContent = 'Sweep crossed items';
+    sweep.addEventListener('click', doSweep);
+    ul.appendChild(sweep);
+  }
+
   var first = ul.querySelector('[nav-selectable="true"]');
   if (first) setFocus(first);
 }
@@ -382,10 +495,39 @@ function doSweep() {
   showStatus('Swept!', false);
 }
 
+// ─── Screen: New Item ─────────────────────────────────────────────────────────
+
+function showNewItemPanel() {
+  document.getElementById('new-item-title').textContent = 'Add to ' + state.currentListName;
+  document.getElementById('input-item-name').value = '';
+  showPanel('panel-new-item');
+  setSoftkeys('Back', 'ADD', '');
+}
+
+function submitNewItem() {
+  var display = document.getElementById('input-item-name').value.trim();
+  if (!display) {
+    showStatus('Enter an item name', true);
+    return;
+  }
+  var key = 'item_' + nowSec() + '_' + Math.random().toString(36).slice(2, 6);
+  state.currentList[key] = { display: display, crossed: false, deleted: false, updated: nowSec() };
+  syncList();
+  showListPanel(state.currentListName);
+}
+
+document.getElementById('input-item-name').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    submitNewItem();
+  }
+});
+
 function syncList() {
+  var name = state.currentListName;
   post('/list', {
     csrf: state.csrf,
-    name: state.currentListName,
+    name: name,
     list: state.currentList
   }).then(function (res) {
     if (res.status === 403) {
@@ -396,9 +538,12 @@ function syncList() {
     }
     if (res.ok) {
       return res.json().then(function (data) {
-        // Update local state with server-merged result but don't re-render
-        // (avoids re-ordering items mid-interaction)
-        state.currentList = data.list || state.currentList;
+        var merged = data.list || state.currentList;
+        state.listCache[name] = { name: name, list_id: data.list_id, list: merged };
+        dbSaveList(name, data.list_id, merged);
+        if (state.currentListName === name) {
+          state.currentList = merged;
+        }
       });
     }
   }).catch(function () {
@@ -420,6 +565,12 @@ document.getElementById('sk-center').addEventListener('click', function () {
     case 'panel-otp':
       submitOtp();
       break;
+    case 'panel-new-list':
+      submitNewList();
+      break;
+    case 'panel-new-item':
+      submitNewItem();
+      break;
     case 'panel-lists':
     case 'panel-list':
       interact(focused());
@@ -429,8 +580,13 @@ document.getElementById('sk-center').addEventListener('click', function () {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
-if (state.csrf) {
-  showListsPanel();
-} else {
-  showEmailPanel();
-}
+openDB(function () {
+  dbLoadAll(function (cache) {
+    state.listCache = cache;
+    if (state.csrf) {
+      showListsPanel();
+    } else {
+      showEmailPanel();
+    }
+  });
+});
