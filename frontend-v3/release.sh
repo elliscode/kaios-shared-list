@@ -1,0 +1,1 @@
+aws s3 sync . s3://daniel-townsend-kaios-shared-list --exclude "*.webmanifest" --exclude "*.DS_Store" --exclude "*.md" --exclude "*.sh" --delete

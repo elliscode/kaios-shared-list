@@ -1,6 +1,6 @@
 'use strict';
 
-var API = 'https://lists.elliscode.com';
+var API = 'https://api.dev-lists.elliscode.com';
 
 var state = {
   email: null,
@@ -21,7 +21,6 @@ function post(path, body) {
   return fetch(API + path, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
 }
