@@ -1,0 +1,35 @@
+#sheet-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 30px;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 14;
+}
+
+#sheet-overlay[active="true"] {
+  display: block;
+}
+
+#sheet {
+  display: none;
+  position: fixed;
+  bottom: 30px;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 2px solid #6a0080;
+  z-index: 15;
+}
+
+#sheet[active="true"] {
+  display: block;
+}
+
+#sheet-ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

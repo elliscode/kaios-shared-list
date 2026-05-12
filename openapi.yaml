@@ -379,11 +379,15 @@ paths:
                     additionalProperties:
                       type: string
                       pattern: '^[a-zA-Z0-9]{10}$'
-                required: [list_names]
+                  user_id:
+                    type: string
+                    pattern: '^[a-zA-Z0-9]{10}$'
+                required: [list_names, user_id]
               example:
                 list_names:
                   Groceries: "abc123XYZ9"
                   TODO: "def456UVW0"
+                user_id: "xK9mP2qR7n"
         '403':
           description: Not authenticated or invalid CSRF token.
           content:

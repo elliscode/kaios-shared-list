@@ -379,7 +379,7 @@ def add_list_to_user(user_id, list_id, name):
 
 @authenticate
 def me_route(event, user_data, body):
-    return format_response(event=event, http_code=200, body={"list_names": get_user_list_names(user_data)})
+    return format_response(event=event, http_code=200, body={"list_names": get_user_list_names(user_data), "user_id": user_data["key2"]})
 
 
 def otp_route(event):

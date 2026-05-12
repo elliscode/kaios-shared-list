@@ -107,6 +107,9 @@ function activePanel() {
 }
 
 function selectables() {
+  if (isSheetOpen()) {
+    return Array.prototype.slice.call(document.querySelectorAll('#sheet [nav-selectable="true"]'));
+  }
   var panel = activePanel();
   if (!panel) return [];
   return Array.prototype.slice.call(panel.querySelectorAll('[nav-selectable="true"]'));
@@ -116,13 +119,27 @@ function focused() {
   return document.querySelector('[nav-selected="true"]');
 }
 
+var SOFTKEY_H = 30;
+
 function setFocus(el) {
   if (!el) return;
   var prev = focused();
   if (prev) prev.removeAttribute('nav-selected');
   el.setAttribute('nav-selected', 'true');
   el.focus();
-  el.scrollIntoView({ block: 'nearest' });
+  scrollToVisible(el);
+}
+
+function scrollToVisible(el) {
+  var container = el.closest('.panel-content') || el.closest('#sheet');
+  if (!container) return;
+  var elRect = el.getBoundingClientRect();
+  var cRect = container.getBoundingClientRect();
+  if (elRect.bottom + SOFTKEY_H > cRect.bottom) {
+    container.scrollTop += elRect.bottom + SOFTKEY_H - cRect.bottom;
+  } else if (elRect.top < cRect.top) {
+    container.scrollTop -= cRect.top - elRect.top;
+  }
 }
 
 function moveFocus(dir) {
@@ -139,9 +156,62 @@ function moveFocus(dir) {
   setFocus(next);
 }
 
+// ─── Bottom Sheet ─────────────────────────────────────────────────────────────
+
+var _sheetSavedSoftkeys = ['', '', ''];
+
+function isSheetOpen() {
+  return document.getElementById('sheet').getAttribute('active') === 'true';
+}
+
+function openSheet(items) {
+  var ul = document.getElementById('sheet-ul');
+  ul.innerHTML = '';
+  items.forEach(function (item) {
+    var li = document.createElement('li');
+    li.className = 'list-row';
+    li.setAttribute('nav-selectable', 'true');
+    li.textContent = item.label;
+    li.addEventListener('click', item.action);
+    ul.appendChild(li);
+  });
+  _sheetSavedSoftkeys = [
+    document.getElementById('sk-left').textContent,
+    document.getElementById('sk-center').textContent,
+    document.getElementById('sk-right').textContent
+  ];
+  document.getElementById('sheet').setAttribute('active', 'true');
+  document.getElementById('sheet-overlay').setAttribute('active', 'true');
+  setSoftkeys('Back', 'SELECT', '');
+  var first = ul.querySelector('[nav-selectable="true"]');
+  if (first) setFocus(first);
+}
+
+function closeSheet() {
+  document.getElementById('sheet').setAttribute('active', 'false');
+  document.getElementById('sheet-overlay').setAttribute('active', 'false');
+  document.getElementById('sheet-ul').innerHTML = '';
+  setSoftkeys(_sheetSavedSoftkeys[0], _sheetSavedSoftkeys[1], _sheetSavedSoftkeys[2]);
+  var panel = activePanel();
+  if (panel) {
+    var first = panel.querySelector('[nav-selected="true"]') || panel.querySelector('[nav-selectable="true"]');
+    if (first) setFocus(first);
+  }
+}
+
 // ─── Key Handling ─────────────────────────────────────────────────────────────
 
 document.addEventListener('keydown', function (e) {
+  if (isSheetOpen()) {
+    switch (e.key) {
+      case 'ArrowUp':   e.preventDefault(); moveFocus('up');   break;
+      case 'ArrowDown': e.preventDefault(); moveFocus('down'); break;
+      case 'Enter':     e.preventDefault(); interact(focused()); break;
+      case 'SoftLeft':
+      case 'Backspace': e.preventDefault(); closeSheet(); break;
+    }
+    return;
+  }
   switch (e.key) {
     case 'ArrowUp':
       e.preventDefault();
@@ -185,10 +255,13 @@ function interact(el) {
 }
 
 function handleSoftLeft() {
+  if (isSheetOpen()) { closeSheet(); return; }
   var panel = activePanel();
   if (!panel) return;
   if (panel.id === 'panel-otp') {
     showEmailPanel();
+  } else if (panel.id === 'panel-lists') {
+    showNewListPanel();
   } else if (panel.id === 'panel-new-list') {
     showListsPanel();
   } else if (panel.id === 'panel-new-item') {
@@ -199,10 +272,11 @@ function handleSoftLeft() {
 }
 
 function handleSoftRight() {
+  if (isSheetOpen()) { return; }
   var panel = activePanel();
   if (!panel) return;
   if (panel.id === 'panel-lists') {
-    showNewListPanel();
+    openOptionsSheet();
   } else if (panel.id === 'panel-list') {
     showNewItemPanel();
   }
@@ -289,9 +363,49 @@ function showListsPanel() {
     state.allLists[name] = state.listCache[name].list_id;
   });
   showPanel('panel-lists');
-  setSoftkeys('', 'OPEN', 'New');
+  setSoftkeys('New', 'OPEN', 'Options');
   renderLists();
   loadLists();
+}
+
+function openOptionsSheet() {
+  openSheet([
+    { label: 'Share', action: function () { openShareSheet(); } }
+  ]);
+}
+
+function openShareSheet() {
+  var cur = focused();
+  var name = cur ? cur.getAttribute('data-list-name') : null;
+  var listId = name ? state.allLists[name] : null;
+  if (!listId) {
+    closeSheet();
+    showStatus('Select a list first', true);
+    return;
+  }
+  var url = 'https://lists.elliscode.com/?share=' + listId;
+  var msg = 'Join my list "' + name + '": ' + url;
+  openSheet([
+    {
+      label: 'Messages',
+      action: function () {
+        closeSheet();
+        var a = document.createElement('a');
+        a.href = 'sms://?&body=' + encodeURIComponent(msg);
+        a.click();
+      }
+    },
+    {
+      label: 'Email',
+      action: function () {
+        closeSheet();
+        var a = document.createElement('a');
+        a.href = 'mailto:?subject=' + encodeURIComponent('Shared list: ' + name)
+               + '&body=' + encodeURIComponent(msg);
+        a.click();
+      }
+    }
+  ]);
 }
 
 // ─── Screen: New List ─────────────────────────────────────────────────────────
@@ -327,6 +441,7 @@ function loadLists() {
       return;
     }
     return res.json().then(function (data) {
+      if (data.user_id) localStorage.setItem('user_id', data.user_id);
       state.allLists = data.list_names || {};
       if (activePanel() && activePanel().id === 'panel-lists') {
         var cur = focused();
@@ -408,12 +523,15 @@ function showListPanel(name) {
   renderListItems();
 }
 
-function softRenderListItems() {
+function softRenderListItems(focusKey) {
   var cur = focused();
-  var focusedKey = cur ? cur.getAttribute('data-item-key') : null;
+  var targetKey = focusKey || (cur ? cur.getAttribute('data-item-key') : null);
+  var container = document.querySelector('#panel-list .panel-content');
+  var savedScrollTop = container ? container.scrollTop : 0;
   renderListItems();
-  if (focusedKey) {
-    var el = document.querySelector('[data-item-key="' + focusedKey + '"]');
+  if (container) container.scrollTop = savedScrollTop;
+  if (targetKey) {
+    var el = document.querySelector('[data-item-key="' + targetKey + '"]');
     if (el) setFocus(el);
   }
 }
@@ -427,10 +545,7 @@ function renderListItems() {
     .filter(function (key) { return !state.currentList[key].deleted; })
     .map(function (key) { return [key, state.currentList[key]]; })
     .sort(function (a, b) {
-      var ia = a[1], ib = b[1];
-      // Uncrossed first, then alphabetical by display name
-      if (ia.crossed !== ib.crossed) return ia.crossed ? 1 : -1;
-      return ia.display.localeCompare(ib.display);
+      return a[1].display.localeCompare(b[1].display);
     });
 
   if (!items.length) {
@@ -471,7 +586,7 @@ function toggleItem(key) {
   if (!item) return;
   item.crossed = !item.crossed;
   item.updated = nowSec();
-  renderListItems();
+  softRenderListItems();
   syncList();
 }
 
@@ -510,10 +625,17 @@ function submitNewItem() {
     showStatus('Enter an item name', true);
     return;
   }
-  var key = 'item_' + nowSec() + '_' + Math.random().toString(36).slice(2, 6);
+  var key = display.toLowerCase().trim().replace(/\s+/g, '_');
+  var existing = state.currentList[key];
+  if (existing && !existing.deleted) {
+    showStatus('"' + display + '" is already in the list', true);
+    return;
+  }
   state.currentList[key] = { display: display, crossed: false, deleted: false, updated: nowSec() };
   syncList();
   showListPanel(state.currentListName);
+  var newEl = document.querySelector('[data-item-key="' + key + '"]');
+  if (newEl) setFocus(newEl);
 }
 
 document.getElementById('input-item-name').addEventListener('keydown', function (e) {
@@ -553,9 +675,12 @@ function syncList() {
 
 // ─── Softkey click handlers ───────────────────────────────────────────────────
 
-document.getElementById('sk-left').addEventListener('click', handleSoftLeft);
+document.getElementById('sk-left').addEventListener('click', function () {
+  if (isSheetOpen()) { closeSheet(); } else { handleSoftLeft(); }
+});
 document.getElementById('sk-right').addEventListener('click', handleSoftRight);
 document.getElementById('sk-center').addEventListener('click', function () {
+  if (isSheetOpen()) { interact(focused()); return; }
   var panel = activePanel();
   if (!panel) return;
   switch (panel.id) {
