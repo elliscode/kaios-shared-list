@@ -369,14 +369,14 @@ function showListsPanel() {
 }
 
 function openOptionsSheet() {
+  var cur = focused();
+  var name = cur ? cur.getAttribute('data-list-name') : null;
   openSheet([
-    { label: 'Share', action: function () { openShareSheet(); } }
+    { label: name ? 'Share ' + name : 'Share', action: function () { openShareSheet(name); } }
   ]);
 }
 
-function openShareSheet() {
-  var cur = focused();
-  var name = cur ? cur.getAttribute('data-list-name') : null;
+function openShareSheet(name) {
   var listId = name ? state.allLists[name] : null;
   if (!listId) {
     closeSheet();
@@ -587,7 +587,7 @@ function toggleItem(key) {
   item.crossed = !item.crossed;
   item.updated = nowSec();
   softRenderListItems();
-  syncList();
+  queueSync();
 }
 
 function doSweep() {
@@ -606,7 +606,7 @@ function doSweep() {
     return;
   }
   renderListItems();
-  syncList();
+  queueSync();
   showStatus('Swept!', false);
 }
 
@@ -632,7 +632,7 @@ function submitNewItem() {
     return;
   }
   state.currentList[key] = { display: display, crossed: false, deleted: false, updated: nowSec() };
-  syncList();
+  queueSync();
   showListPanel(state.currentListName);
   var newEl = document.querySelector('[data-item-key="' + key + '"]');
   if (newEl) setFocus(newEl);
@@ -644,6 +644,13 @@ document.getElementById('input-item-name').addEventListener('keydown', function 
     submitNewItem();
   }
 });
+
+var _syncTimer = null;
+
+function queueSync() {
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(syncList, 1000);
+}
 
 function syncList() {
   var name = state.currentListName;

@@ -30,7 +30,7 @@ Call `POST /share` with a `list_id` to accept a shared list. If the user already
 | `APP_NAME` | App identifier, used to name the auth cookie |
 | `DYNAMODB_TABLE_NAME` | DynamoDB table name |
 | `DOMAIN_NAMES` | Comma-separated allowed origins (e.g. `https://lists.elliscode.com`) |
-| `ENCRYPTION_KEY` | Fernet key for encrypting list contents at rest |
+| `ENCRYPTION_KEY` | 32-byte hex key used to encrypt list contents and hash email addresses |
 | `SES_REGION` | AWS region for SES (default: `us-east-1`) |
 | `SES_SENDER_EMAIL` | Verified SES sender address |
 | `SES_REPLY_TO_EMAIL` | Reply-to address for OTP emails |
@@ -42,6 +42,16 @@ Generate the `ENCRYPTION_KEY` with:
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
+
+### DynamoDB Obfuscation
+
+By default, DynamoDB tables are encrypted at rest, but the application developer can still read the contents of the database. To prevent any PII being visible to the developer, the backend encrypts all sensitive fields written to DynamoDB using a custom XOR stream cipher with a SHA-256-derived keystream and a random nonce.
+
+Email addresses are a special case: rather than being encrypted, they are stored as a keyed HMAC-SHA256 hash. This allows the server to look up a user by email without storing the address in recoverable form — even the developer cannot retrieve an email address from the database.
+
+This obfuscation is not intended to be a replacement for serious encryption (AWS handles that at the storage layer). It is simply meant to prevent accidentally reading user data when browsing the database for debugging purposes.
+
+It would be possible for a developer with access to the `ENCRYPTION_KEY` to manually decrypt the data, but this is not a realistic attack surface — the intent is to avoid inadvertently seeing what users put in their lists, not to protect against a malicious insider.
 
 ## Frontend
 
