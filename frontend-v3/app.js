@@ -151,13 +151,21 @@ function setFocus(el) {
 function updateListsSoftkey(el) {
   if (isSheetOpen()) return;
   var panel = activePanel();
-  if (!panel || panel.id !== 'panel-lists') return;
-  if (el.hasAttribute('data-list-name')) {
-    setSoftkeys('Share', 'OPEN', 'Options');
-  } else if (el.hasAttribute('data-new-list')) {
-    setSoftkeys('', 'CREATE', 'Options');
-  } else {
-    setSoftkeys('', 'OPEN', 'Options');
+  if (!panel) return;
+  if (panel.id === 'panel-lists') {
+    if (el.hasAttribute('data-list-name')) {
+      setSoftkeys('Share', 'OPEN', 'Options');
+    } else if (el.hasAttribute('data-new-list')) {
+      setSoftkeys('', 'CREATE', 'Options');
+    } else {
+      setSoftkeys('', 'OPEN', 'Options');
+    }
+  } else if (panel.id === 'panel-list') {
+    if (el.classList.contains('sweep-row')) {
+      setSoftkeys('Back', 'CLEAR', 'Add');
+    } else {
+      setSoftkeys('Back', 'CHECK', 'Add');
+    }
   }
 }
 
@@ -599,6 +607,7 @@ function showListPanel(name) {
 function softRenderListItems(focusKey) {
   var cur = focused();
   var targetKey = focusKey || (cur ? cur.getAttribute('data-item-key') : null);
+  var sweepFocused = cur ? cur.classList.contains('sweep-row') : false;
   var container = document.querySelector('#panel-list .panel-content');
   var savedScrollTop = container ? container.scrollTop : 0;
   renderListItems();
@@ -606,6 +615,9 @@ function softRenderListItems(focusKey) {
   if (targetKey) {
     var el = document.querySelector('[data-item-key="' + targetKey + '"]');
     if (el) setFocus(el);
+  } else if (sweepFocused) {
+    var sweep = document.querySelector('.sweep-row');
+    if (sweep) setFocus(sweep);
   }
 }
 
@@ -646,7 +658,7 @@ function renderListItems() {
     var sweep = document.createElement('li');
     sweep.className = 'list-row sweep-row';
     sweep.setAttribute('nav-selectable', 'true');
-    sweep.textContent = 'Sweep crossed items';
+    sweep.textContent = 'Clear Crossed Items';
     sweep.addEventListener('click', doSweep);
     ul.appendChild(sweep);
   }
@@ -681,7 +693,7 @@ function doSweep() {
   }
   softRenderListItems();
   queueSync();
-  showStatus('Swept!', false);
+  showStatus('Cleared!', false);
 }
 
 // ─── Screen: New Item ─────────────────────────────────────────────────────────

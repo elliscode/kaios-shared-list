@@ -33,7 +33,6 @@
 
 .new-list-row {
   color: #9b27af;
-  font-style: italic;
   border-top: 1px solid #ddd;
   margin-top: 4px;
 }
@@ -41,12 +40,10 @@
 .new-list-row[nav-selected="true"] {
   background: #9b27af;
   color: #fff;
-  font-style: italic;
 }
 
 .sweep-row {
   color: #9b27af;
-  font-style: italic;
   border-top: 1px solid #ddd;
   margin-top: 4px;
 }
@@ -54,7 +51,6 @@
 .sweep-row[nav-selected="true"] {
   background: #9b27af;
   color: #fff;
-  font-style: italic;
 }
 
 .options-row {
