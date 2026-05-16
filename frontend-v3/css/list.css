@@ -56,3 +56,51 @@
   color: #fff;
   font-style: italic;
 }
+
+.options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+}
+
+.options-row[nav-selected="true"] {
+  background: #9b27af;
+  color: #fff;
+}
+
+.options-label {
+  flex: 1;
+}
+
+.options-value {
+  color: #666;
+  font-size: 12px;
+}
+
+.options-row[nav-selected="true"] .options-value {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.options-row[data-setting]:not([data-setting="none"]) .options-value::before {
+  content: '◀';
+  font-size: 9px;
+  margin-right: 4px;
+  opacity: 0.35;
+}
+
+.options-row[data-setting]:not([data-setting="none"]) .options-value::after {
+  content: '▶';
+  font-size: 9px;
+  margin-left: 4px;
+  opacity: 0.35;
+}
+
+.options-row[nav-selected="true"] .options-value::before,
+.options-row[nav-selected="true"] .options-value::after {
+  opacity: 1;
+}

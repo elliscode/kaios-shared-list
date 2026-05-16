@@ -3,6 +3,18 @@
 var API      = 'https://api.dev-lists.elliscode.com'; // TODO: change to api.lists.elliscode.com for prod
 var APP_HOST = 'https://dev-lists.elliscode.com';     // TODO: change to lists.elliscode.com for prod
 
+var SETTING_LABELS = {
+  listOrder:   { alpha: 'Alphabetical', date: 'Date Added' },
+  itemOrder:   { alpha: 'Alphabetical', date: 'Date Updated' },
+  displayMode: { light: 'Light',        dark: 'Dark' }
+};
+
+var settings = {
+  listOrder:   localStorage.getItem('listOrder')   || 'alpha',
+  itemOrder:   localStorage.getItem('itemOrder')   || 'alpha',
+  displayMode: localStorage.getItem('displayMode') || 'light'
+};
+
 var state = {
   email: null,
   csrf: localStorage.getItem('csrf') || null,
@@ -79,6 +91,10 @@ function showStatus(msg, isError) {
   _statusTimer = setTimeout(function () {
     el.removeAttribute('visible');
   }, 3000);
+}
+
+function applySettings() {
+  document.body.classList.toggle('dark', settings.displayMode === 'dark');
 }
 
 // ─── Panel & Softkey ──────────────────────────────────────────────────────────
@@ -247,6 +263,14 @@ document.addEventListener('keydown', function (e) {
         interact(focused());
       }
       break;
+    case 'ArrowLeft':
+    case 'ArrowRight':
+      if (activePanel() && activePanel().id === 'panel-options') {
+        e.preventDefault();
+        var cur = focused();
+        if (cur) cycleOption(cur);
+      }
+      break;
     case 'SoftLeft':
       e.preventDefault();
       handleSoftLeft();
@@ -289,6 +313,8 @@ function handleSoftLeft() {
     showListPanel(state.currentListName);
   } else if (panel.id === 'panel-list') {
     showListsPanel();
+  } else if (panel.id === 'panel-options') {
+    showListsPanel();
   }
 }
 
@@ -297,7 +323,7 @@ function handleSoftRight() {
   var panel = activePanel();
   if (!panel) return;
   if (panel.id === 'panel-lists') {
-    openOptionsSheet();
+    showOptionsPanel();
   } else if (panel.id === 'panel-list') {
     showNewItemPanel();
   }
@@ -389,12 +415,25 @@ function showListsPanel() {
   loadLists();
 }
 
-function openOptionsSheet() {
-  var cur = focused();
-  var name = cur ? cur.getAttribute('data-list-name') : null;
-  openSheet([
-    { label: name ? 'Share ' + name : 'Share', action: function () { openShareSheet(name); } }
-  ]);
+function showOptionsPanel() {
+  document.getElementById('opt-user-id').textContent = localStorage.getItem('user_id') || '—';
+  document.getElementById('opt-list-order').textContent = SETTING_LABELS.listOrder[settings.listOrder];
+  document.getElementById('opt-item-order').textContent = SETTING_LABELS.itemOrder[settings.itemOrder];
+  document.getElementById('opt-display-mode').textContent = SETTING_LABELS.displayMode[settings.displayMode];
+  showPanel('panel-options');
+  setSoftkeys('Back', '', '');
+}
+
+function cycleOption(el) {
+  var key = el.getAttribute('data-setting');
+  if (key === 'none') return;
+  var values = el.getAttribute('data-values').split(',');
+  var idx = values.indexOf(settings[key]);
+  var next = values[(idx + 1) % values.length];
+  settings[key] = next;
+  localStorage.setItem(key, next);
+  el.querySelector('.options-value').textContent = SETTING_LABELS[key][next];
+  applySettings();
 }
 
 function openShareSheet(name) {
@@ -488,7 +527,8 @@ function renderLists() {
   var empty = document.getElementById('lists-empty');
   ul.innerHTML = '';
 
-  var names = Object.keys(state.allLists).sort();
+  var names = Object.keys(state.allLists);
+  if (settings.listOrder === 'alpha') names.sort();
   if (!names.length) {
     empty.style.display = '';
   } else {
@@ -578,6 +618,7 @@ function renderListItems() {
     .filter(function (key) { return !state.currentList[key].deleted; })
     .map(function (key) { return [key, state.currentList[key]]; })
     .sort(function (a, b) {
+      if (settings.itemOrder === 'date') return a[1].updated - b[1].updated;
       return a[1].display.localeCompare(b[1].display);
     });
 
@@ -742,6 +783,10 @@ document.getElementById('sk-center').addEventListener('click', function () {
     case 'panel-new-item':
       submitNewItem();
       break;
+    case 'panel-options':
+      var f = focused();
+      if (f) cycleOption(f);
+      break;
     case 'panel-lists':
     case 'panel-list':
       interact(focused());
@@ -752,6 +797,7 @@ document.getElementById('sk-center').addEventListener('click', function () {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
 openDB(function () {
+  applySettings();
   dbLoadAll(function (cache) {
     state.listCache = cache;
     if (state.csrf) {

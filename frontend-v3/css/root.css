@@ -74,3 +74,58 @@ html, body {
   background: rgba(180, 0, 0, 0.85);
   color: #fff;
 }
+
+/* === Dark mode === */
+body.dark {
+  background: #1c1c1e;
+  color: #e5e7eb;
+}
+
+body.dark #softkey {
+  background: #252528;
+  border-top-color: #3a3a40;
+}
+
+body.dark #sk-left,
+body.dark #sk-right {
+  color: #c77ddb;
+}
+
+body.dark #sk-center {
+  color: #e5e7eb;
+}
+
+body.dark .list-row {
+  border-bottom-color: #2e2e30;
+}
+
+body.dark .list-row.crossed {
+  color: #5a5a62;
+}
+
+body.dark .new-list-row,
+body.dark .sweep-row {
+  border-top-color: #2e2e30;
+  color: #c77ddb;
+}
+
+body.dark .options-row {
+  border-bottom-color: #2e2e30;
+}
+
+body.dark .options-value {
+  color: #8b8b93;
+}
+
+body.dark .hint {
+  color: #8b8b93;
+}
+
+body.dark .input-wrap input {
+  color: #e5e7eb;
+  border-bottom-color: #4a4a52;
+}
+
+body.dark .input-wrap label {
+  color: #8b8b93;
+}
