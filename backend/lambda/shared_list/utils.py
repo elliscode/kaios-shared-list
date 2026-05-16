@@ -409,7 +409,6 @@ def otp_route(event):
     if otp_data is None or otp_data["expiration"] < int(time.time()):
         otp_value = "".join(secrets.choice(digits) for i in range(6))
         otp_data = create_otp(user_id, otp_value, OTP_TIMEOUT)
-        print(otp_data)
         send_email(email, otp_value, OTP_TIMEOUT)
         body_value = {"email": email}
 
@@ -453,8 +452,6 @@ def login_route(event):
 
     if not email or not submitted_otp:
         return format_response(event=event, http_code=400, body="email and otp are required")
-
-    print(f"{email} attempted to log in with {submitted_otp}")
 
     # get user data
     user_id = find_user_id(email)

@@ -1,6 +1,7 @@
 'use strict';
 
-var API = 'https://api.dev-lists.elliscode.com';
+var API      = 'https://api.dev-lists.elliscode.com'; // TODO: change to api.lists.elliscode.com for prod
+var APP_HOST = 'https://dev-lists.elliscode.com';     // TODO: change to lists.elliscode.com for prod
 
 var state = {
   email: null,
@@ -128,6 +129,20 @@ function setFocus(el) {
   el.setAttribute('nav-selected', 'true');
   el.focus();
   scrollToVisible(el);
+  updateListsSoftkey(el);
+}
+
+function updateListsSoftkey(el) {
+  if (isSheetOpen()) return;
+  var panel = activePanel();
+  if (!panel || panel.id !== 'panel-lists') return;
+  if (el.hasAttribute('data-list-name')) {
+    setSoftkeys('Share', 'OPEN', 'Options');
+  } else if (el.hasAttribute('data-new-list')) {
+    setSoftkeys('', 'CREATE', 'Options');
+  } else {
+    setSoftkeys('', 'OPEN', 'Options');
+  }
 }
 
 function scrollToVisible(el) {
@@ -159,12 +174,14 @@ function moveFocus(dir) {
 // ─── Bottom Sheet ─────────────────────────────────────────────────────────────
 
 var _sheetSavedSoftkeys = ['', '', ''];
+var _sheetSavedFocus = null;
 
 function isSheetOpen() {
   return document.getElementById('sheet').getAttribute('active') === 'true';
 }
 
 function openSheet(items) {
+  _sheetSavedFocus = focused();
   var ul = document.getElementById('sheet-ul');
   ul.innerHTML = '';
   items.forEach(function (item) {
@@ -192,11 +209,13 @@ function closeSheet() {
   document.getElementById('sheet-overlay').setAttribute('active', 'false');
   document.getElementById('sheet-ul').innerHTML = '';
   setSoftkeys(_sheetSavedSoftkeys[0], _sheetSavedSoftkeys[1], _sheetSavedSoftkeys[2]);
-  var panel = activePanel();
-  if (panel) {
-    var first = panel.querySelector('[nav-selected="true"]') || panel.querySelector('[nav-selectable="true"]');
-    if (first) setFocus(first);
+  var restore = _sheetSavedFocus;
+  _sheetSavedFocus = null;
+  if (!restore) {
+    var panel = activePanel();
+    if (panel) restore = panel.querySelector('[nav-selectable="true"]');
   }
+  if (restore) setFocus(restore);
 }
 
 // ─── Key Handling ─────────────────────────────────────────────────────────────
@@ -261,7 +280,9 @@ function handleSoftLeft() {
   if (panel.id === 'panel-otp') {
     showEmailPanel();
   } else if (panel.id === 'panel-lists') {
-    showNewListPanel();
+    var cur = focused();
+    var name = cur ? cur.getAttribute('data-list-name') : null;
+    if (name) openShareSheet(name);
   } else if (panel.id === 'panel-new-list') {
     showListsPanel();
   } else if (panel.id === 'panel-new-item') {
@@ -363,7 +384,7 @@ function showListsPanel() {
     state.allLists[name] = state.listCache[name].list_id;
   });
   showPanel('panel-lists');
-  setSoftkeys('New', 'OPEN', 'Options');
+  setSoftkeys('', 'OPEN', 'Options');
   renderLists();
   loadLists();
 }
@@ -383,7 +404,7 @@ function openShareSheet(name) {
     showStatus('Select a list first', true);
     return;
   }
-  var url = 'https://lists.elliscode.com/?share=' + listId;
+  var url = APP_HOST + '/?share=' + listId;
   var msg = 'Join my list "' + name + '": ' + url;
   openSheet([
     {
@@ -446,9 +467,13 @@ function loadLists() {
       if (activePanel() && activePanel().id === 'panel-lists') {
         var cur = focused();
         var focusedName = cur ? cur.getAttribute('data-list-name') : null;
+        var focusedNewList = cur ? cur.hasAttribute('data-new-list') : false;
         renderLists();
         if (focusedName) {
           var el = document.querySelector('[data-list-name="' + focusedName + '"]');
+          if (el) setFocus(el);
+        } else if (focusedNewList) {
+          var el = document.querySelector('[data-new-list]');
           if (el) setFocus(el);
         }
       }
@@ -466,9 +491,9 @@ function renderLists() {
   var names = Object.keys(state.allLists).sort();
   if (!names.length) {
     empty.style.display = '';
-    return;
+  } else {
+    empty.style.display = 'none';
   }
-  empty.style.display = 'none';
 
   names.forEach(function (name) {
     var li = document.createElement('li');
@@ -482,6 +507,14 @@ function renderLists() {
     ul.appendChild(li);
   });
 
+  var newLi = document.createElement('li');
+  newLi.className = 'list-row new-list-row';
+  newLi.setAttribute('nav-selectable', 'true');
+  newLi.setAttribute('data-new-list', 'true');
+  newLi.textContent = '+ New List';
+  newLi.addEventListener('click', showNewListPanel);
+  ul.appendChild(newLi);
+
   var first = ul.querySelector('[nav-selectable="true"]');
   if (first) setFocus(first);
 }
@@ -493,7 +526,7 @@ function openList(name) {
   state.currentList = cached ? cached.list : {};
   showListPanel(name);
 
-  post('/list', { csrf: state.csrf, name: name, list: {} }).then(function (res) {
+  post('/list', { csrf: state.csrf, name: name, list: state.currentList }).then(function (res) {
     if (res.status === 403) {
       state.csrf = null;
       localStorage.removeItem('csrf');
@@ -605,7 +638,7 @@ function doSweep() {
     showStatus('Nothing to sweep', false);
     return;
   }
-  renderListItems();
+  softRenderListItems();
   queueSync();
   showStatus('Swept!', false);
 }
@@ -628,10 +661,12 @@ function submitNewItem() {
   var key = display.toLowerCase().trim().replace(/\s+/g, '_');
   var existing = state.currentList[key];
   if (existing && !existing.deleted) {
-    showStatus('"' + display + '" is already in the list', true);
-    return;
+    existing.display = display;
+    existing.crossed = false;
+    existing.updated = nowSec();
+  } else {
+    state.currentList[key] = { display: display, crossed: false, deleted: false, updated: nowSec() };
   }
-  state.currentList[key] = { display: display, crossed: false, deleted: false, updated: nowSec() };
   queueSync();
   showListPanel(state.currentListName);
   var newEl = document.querySelector('[data-item-key="' + key + '"]');
@@ -648,16 +683,17 @@ document.getElementById('input-item-name').addEventListener('keydown', function 
 var _syncTimer = null;
 
 function queueSync() {
+  var snapName = state.currentListName;
+  var snapList = state.currentList;
   clearTimeout(_syncTimer);
-  _syncTimer = setTimeout(syncList, 1000);
+  _syncTimer = setTimeout(function () { syncList(snapName, snapList); }, 1000);
 }
 
-function syncList() {
-  var name = state.currentListName;
+function syncList(name, list) {
   post('/list', {
     csrf: state.csrf,
     name: name,
-    list: state.currentList
+    list: list
   }).then(function (res) {
     if (res.status === 403) {
       state.csrf = null;
@@ -672,6 +708,9 @@ function syncList() {
         dbSaveList(name, data.list_id, merged);
         if (state.currentListName === name) {
           state.currentList = merged;
+          if (activePanel() && activePanel().id === 'panel-list') {
+            softRenderListItems();
+          }
         }
       });
     }
