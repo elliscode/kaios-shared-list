@@ -23,7 +23,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 }
 
 #sk-center {
@@ -49,5 +48,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
 }
+
+/* Softkey is hidden at 241px+ via root.css */

@@ -100,3 +100,188 @@
 .options-row[nav-selected="true"] .options-value::after {
   opacity: 1;
 }
+
+/* === Danger action rows (Log Out etc.) === */
+.options-row-danger {
+  color: #c0392b;
+  border-top: 1px solid #eee;
+}
+
+.options-row-danger[nav-selected="true"] {
+  background: #c0392b;
+  color: #fff;
+}
+
+body.dark .options-row-danger {
+  color: #e57373;
+  border-top-color: #2e2e30;
+}
+
+body.dark .options-row-danger[nav-selected="true"] {
+  background: #c0392b;
+  color: #fff;
+}
+
+@media (min-width: 241px) {
+  body.using-keyboard .options-row-danger[nav-selected="true"] {
+    background: #c0392b;
+    color: #fff;
+  }
+}
+
+/* === Desktop: selected list highlight in sidebar === */
+@media (min-width: 768px) {
+  .list-row[data-current-list="true"] {
+    background: #ede0f0;
+    font-weight: 600;
+  }
+
+  body.dark .list-row[data-current-list="true"] {
+    background: #3a2a3e;
+    font-weight: 600;
+  }
+}
+
+/* === iPhone / mobile web (241px – 767px) ======================
+   Larger touch targets, iOS-standard 16px type, 16px side inset.
+================================================================ */
+@media (min-width: 241px) and (max-width: 767px) {
+  .list-row {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+
+  .new-list-row,
+  .sweep-row {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+
+  .options-row {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+
+  .options-value {
+    font-size: 14px;
+  }
+}
+
+/* === Nav-selected highlight: suppress at 241px+ unless keyboard active ===
+   On touch/mouse screens the purple selection bar is confusing and
+   distracting. It reappears automatically when arrow keys are pressed.
+================================================================ */
+@media (min-width: 241px) {
+  .list-row[nav-selected="true"],
+  .new-list-row[nav-selected="true"],
+  .sweep-row[nav-selected="true"],
+  .options-row[nav-selected="true"] {
+    background: transparent;
+    color: inherit;
+  }
+
+  .list-row.crossed[nav-selected="true"] {
+    color: #999;
+  }
+
+  body.dark .list-row.crossed[nav-selected="true"] {
+    color: #5a5a62;
+  }
+
+  .options-row[nav-selected="true"] .options-value {
+    color: #666;
+  }
+
+  body.dark .options-row[nav-selected="true"] .options-value {
+    color: #8b8b93;
+  }
+
+  .options-row[nav-selected="true"] .options-value::before,
+  .options-row[nav-selected="true"] .options-value::after {
+    opacity: 0.35;
+  }
+
+  /* Restore highlights when user switches to keyboard navigation */
+  body.using-keyboard .list-row[nav-selected="true"] {
+    background: #9b27af;
+    color: #fff;
+  }
+
+  body.using-keyboard .list-row.crossed[nav-selected="true"] {
+    background: #9b27af;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  body.using-keyboard .new-list-row[nav-selected="true"],
+  body.using-keyboard .sweep-row[nav-selected="true"] {
+    background: #9b27af;
+    color: #fff;
+  }
+
+  body.using-keyboard .options-row[nav-selected="true"] {
+    background: #9b27af;
+    color: #fff;
+  }
+
+  body.using-keyboard .options-row[nav-selected="true"] .options-value {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  body.using-keyboard .options-row[nav-selected="true"] .options-value::before,
+  body.using-keyboard .options-row[nav-selected="true"] .options-value::after {
+    opacity: 1;
+  }
+
+  /* Dark mode variants */
+  body.dark.using-keyboard .list-row[nav-selected="true"] {
+    background: #9b27af;
+    color: #fff;
+  }
+
+  body.dark.using-keyboard .list-row.crossed[nav-selected="true"] {
+    background: #9b27af;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  body.dark.using-keyboard .new-list-row[nav-selected="true"],
+  body.dark.using-keyboard .sweep-row[nav-selected="true"] {
+    background: #9b27af;
+    color: #fff;
+  }
+
+  body.dark.using-keyboard .options-row[nav-selected="true"] {
+    background: #9b27af;
+    color: #fff;
+  }
+
+  body.dark.using-keyboard .options-row[nav-selected="true"] .options-value {
+    color: rgba(255, 255, 255, 0.75);
+  }
+}
+
+/* === Hover & active states (mouse/trackpad only) === */
+@media (hover: hover) {
+  .list-row:hover:not([nav-selected="true"]) {
+    background: #f5f0f7;
+  }
+  .options-row:hover:not([nav-selected="true"]) {
+    background: #f5f0f7;
+  }
+}
+
+.list-row:active,
+.options-row:active {
+  background: #ede0f0;
+}
+
+body.dark .list-row:active,
+body.dark .options-row:active {
+  background: #3a2a3e;
+}
+
+@media (hover: hover) {
+  body.dark .list-row:hover:not([nav-selected="true"]),
+  body.dark .options-row:hover:not([nav-selected="true"]) {
+    background: #2a2030;
+  }
+}

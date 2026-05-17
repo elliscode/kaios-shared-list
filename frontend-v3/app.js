@@ -27,6 +27,10 @@ var state = {
 
 var pendingShare = null;
 
+function isSplitMode() {
+  return window.innerWidth >= 768;
+}
+
 if (navigator.mozSetMessageHandler) {
   navigator.mozSetMessageHandler('activity', function (activity) {
     var url = activity.source && activity.source.data && activity.source.data.url;
@@ -256,7 +260,19 @@ function closeSheet() {
 
 // ─── Key Handling ─────────────────────────────────────────────────────────────
 
+document.addEventListener('mousedown', function () {
+  document.body.classList.remove('using-keyboard');
+}, true);
+
+document.addEventListener('touchstart', function () {
+  document.body.classList.remove('using-keyboard');
+}, { passive: true, capture: true });
+
 document.addEventListener('keydown', function (e) {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
+      e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    document.body.classList.add('using-keyboard');
+  }
   if (isSheetOpen()) {
     switch (e.key) {
       case 'ArrowUp':   e.preventDefault(); moveFocus('up');   break;
@@ -332,6 +348,7 @@ function handleSoftLeft() {
   } else if (panel.id === 'panel-new-item') {
     showListPanel(state.currentListName);
   } else if (panel.id === 'panel-list') {
+    document.body.classList.remove('list-open');
     showListsPanel();
   } else if (panel.id === 'panel-options') {
     showListsPanel();
@@ -352,9 +369,10 @@ function handleSoftRight() {
 // ─── Screen: Email ────────────────────────────────────────────────────────────
 
 function showEmailPanel() {
+  document.body.classList.remove('authenticated', 'list-open');
   document.getElementById('email-hint').textContent = pendingShare
     ? 'Sign in to join the shared list.'
-    : 'We’ll send a one-time code to your email.';
+    : "We'll send a one-time code to your email.";
   showPanel('panel-email');
   setSoftkeys('', 'NEXT', '');
 }
@@ -429,6 +447,7 @@ document.getElementById('input-otp').addEventListener('keydown', function (e) {
 // ─── Screen: Lists ────────────────────────────────────────────────────────────
 
 function showListsPanel() {
+  document.body.classList.add('authenticated');
   Object.keys(state.listCache).forEach(function (name) {
     state.allLists[name] = state.listCache[name].list_id;
   });
@@ -445,7 +464,29 @@ function showOptionsPanel() {
   document.getElementById('opt-item-order').textContent = SETTING_LABELS.itemOrder[settings.itemOrder];
   document.getElementById('opt-display-mode').textContent = SETTING_LABELS.displayMode[settings.displayMode];
   showPanel('panel-options');
-  setSoftkeys('Back', '', '');
+  setSoftkeys('Back', 'SELECT', '');
+}
+
+function logOut() {
+  state.csrf = null;
+  localStorage.removeItem('csrf');
+  document.body.classList.remove('authenticated', 'list-open');
+  showEmailPanel();
+  showStatus('Logged out', false);
+}
+
+function logOutAll() {
+  post('/log-out-all', { csrf: state.csrf }).then(function (res) {
+    if (res.ok) {
+      logOut();
+    } else {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        showStatus(data.message || 'Could not log out', true);
+      });
+    }
+  }).catch(function () {
+    showStatus('Network error', true);
+  });
 }
 
 function cycleOption(el) {
@@ -613,6 +654,12 @@ function renderLists() {
 }
 
 function openList(name) {
+  document.querySelectorAll('[data-current-list]').forEach(function (el) {
+    el.removeAttribute('data-current-list');
+  });
+  var marker = document.querySelector('[data-list-name="' + name + '"]');
+  if (marker) marker.setAttribute('data-current-list', 'true');
+
   var cached = state.listCache[name];
   state.currentListName = name;
   state.currentListId = cached ? cached.list_id : state.allLists[name];
@@ -643,6 +690,7 @@ function openList(name) {
 // ─── Screen: List ─────────────────────────────────────────────────────────────
 
 function showListPanel(name) {
+  if (isSplitMode()) document.body.classList.add('list-open');
   document.getElementById('list-title').textContent = name;
   showPanel('panel-list');
   setSoftkeys('Back', 'CHECK', 'Add');
@@ -841,8 +889,7 @@ document.getElementById('sk-center').addEventListener('click', function () {
       submitNewItem();
       break;
     case 'panel-options':
-      var f = focused();
-      if (f) cycleOption(f);
+      interact(focused());
       break;
     case 'panel-lists':
     case 'panel-list':
@@ -852,6 +899,25 @@ document.getElementById('sk-center').addEventListener('click', function () {
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
+
+document.querySelectorAll('.options-row').forEach(function (row) {
+  row.addEventListener('click', function () { cycleOption(row); });
+});
+
+document.getElementById('opt-log-out').addEventListener('click', logOut);
+document.getElementById('opt-log-out-all').addEventListener('click', logOutAll);
+
+document.getElementById('btn-settings').addEventListener('click', showOptionsPanel);
+document.getElementById('btn-email-next').addEventListener('click', submitEmail);
+document.getElementById('btn-otp-back').addEventListener('click', handleSoftLeft);
+document.getElementById('btn-otp-verify').addEventListener('click', submitOtp);
+document.getElementById('btn-new-list-back').addEventListener('click', handleSoftLeft);
+document.getElementById('btn-new-list-create').addEventListener('click', submitNewList);
+document.getElementById('btn-new-item-back').addEventListener('click', handleSoftLeft);
+document.getElementById('btn-new-item-add').addEventListener('click', submitNewItem);
+document.getElementById('btn-list-back').addEventListener('click', handleSoftLeft);
+document.getElementById('btn-list-add').addEventListener('click', showNewItemPanel);
+document.getElementById('btn-options-back').addEventListener('click', handleSoftLeft);
 
 openDB(function () {
   applySettings();

@@ -38,7 +38,7 @@ html, body {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
-  padding-bottom: 38px;
+  padding-bottom: 38px; /* KaiOS: room for 30px softkey bar */
 }
 
 .hint {
@@ -50,7 +50,7 @@ html, body {
 
 .status-toast {
   position: fixed;
-  bottom: 34px;
+  bottom: 34px; /* KaiOS: above softkey bar */
   left: 0;
   right: 0;
   padding: 4px 8px;
@@ -73,6 +73,104 @@ html, body {
 .status-toast.error {
   background: rgba(180, 0, 0, 0.85);
   color: #fff;
+}
+
+/* === iPhone / mobile web (241px – 767px) ======================
+   No softkey bar — hide it and reclaim its space.
+   Header nav buttons (←, +, ✓) handle all navigation.
+================================================================ */
+@media (min-width: 241px) {
+  #softkey {
+    display: none;
+  }
+
+  .panel-content {
+    padding-bottom: 8px;
+  }
+
+  .status-toast {
+    bottom: 8px;
+  }
+}
+
+@media (min-width: 241px) and (max-width: 767px) {
+  /* List panels: edge-to-edge, no outer gutter */
+  #panel-lists .panel-content,
+  #panel-list .panel-content,
+  #panel-options .panel-content {
+    padding: 0;
+  }
+
+  /* Input panels: generous breathing room */
+  #panel-email .panel-content,
+  #panel-otp .panel-content,
+  #panel-new-list .panel-content,
+  #panel-new-item .panel-content {
+    padding: 20px 16px;
+  }
+
+  /* Header side padding matches list item inset */
+  .header {
+    padding: 6px 16px;
+  }
+}
+
+/* === Desktop single-column centered (480px+) === */
+@media (min-width: 480px) {
+  #root {
+    max-width: 400px;
+    margin: 0 auto;
+  }
+}
+
+/* === Desktop split pane (768px+) === */
+@media (min-width: 768px) {
+  body {
+    background: #f0ebf4;
+  }
+
+  #root {
+    max-width: 860px;
+    border: 1px solid #e0d4ea;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 8px 40px rgba(106, 0, 128, 0.15);
+    flex-direction: row;
+    overflow: hidden;
+  }
+
+  /* Auth/overlay panels cover the full split layout */
+  #panel-email,
+  #panel-otp,
+  #panel-options,
+  #panel-new-list,
+  #panel-new-item {
+    position: absolute;
+    inset: 0;
+    z-index: 15;
+    border-radius: 8px 8px 0 0;
+    background: #fff;
+  }
+
+  /* Sidebar always visible once authenticated */
+  body.authenticated #panel-lists {
+    display: flex !important;
+    flex: 1;
+    height: 100%;
+    border-right: none;
+  }
+
+  /* Sidebar shrinks when a list is open */
+  body.authenticated.list-open #panel-lists {
+    flex: none;
+    width: 260px;
+    min-width: 260px;
+    border-right: 1px solid #e0d4ea;
+  }
+
+  body.authenticated.list-open #panel-list {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 /* === Dark mode === */
@@ -128,4 +226,27 @@ body.dark .input-wrap input {
 
 body.dark .input-wrap label {
   color: #8b8b93;
+}
+
+@media (min-width: 768px) {
+  body.dark {
+    background: #16141a;
+  }
+
+  body.dark #root {
+    border-color: #3a2e42;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  body.dark.authenticated.list-open #panel-lists {
+    border-right-color: #3a2e42;
+  }
+
+  body.dark #panel-email,
+  body.dark #panel-otp,
+  body.dark #panel-options,
+  body.dark #panel-new-list,
+  body.dark #panel-new-item {
+    background: #1c1c1e;
+  }
 }

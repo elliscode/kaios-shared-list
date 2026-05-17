@@ -1,4 +1,4 @@
-from shared_list.utils import authenticate, format_response, get_list, store_list, create_id, add_list_to_user, remove_list_from_user, get_user_list_names
+from shared_list.utils import authenticate, format_response, get_list, store_list, create_id, add_list_to_user, remove_list_from_user, get_user_list_names, delete_active_tokens
 from shared_list.list_merge import merge_list
 from shared_list.input_validation import validate_id
 
@@ -81,3 +81,9 @@ def delete_list_route(event, user_data, body):
     remove_list_from_user(user_data["key2"], name)
 
     return format_response(event=event, http_code=200, body={"name": name})
+
+
+@authenticate
+def log_out_all_route(event, user_data, body):
+    delete_active_tokens(user_data["key2"])
+    return format_response(event=event, http_code=200, body={"message": "Logged out of all devices"})

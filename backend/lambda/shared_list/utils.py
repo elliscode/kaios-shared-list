@@ -138,6 +138,13 @@ def delete_token(token_id):
     )
 
 
+def delete_active_tokens(user_id):
+    dynamo.delete_item(
+        Key=python_obj_to_dynamo_obj({"key1": "active_tokens", "key2": user_id}),
+        TableName=TABLE_NAME,
+    )
+
+
 def find_user_id(email):
     email_data_boto = dynamo.get_item(
         Key=python_obj_to_dynamo_obj({"key1": "email", "key2": hash_email(email)}),

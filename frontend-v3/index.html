@@ -6,19 +6,22 @@
   <title>Shared List</title>
   <!-- Keepin this commented out for now because I only want installs through kaios store -->
   <!-- <link rel="manifest" href="manifest.webmanifest"> -->
-  <link rel="stylesheet" href="css/root.css">
-  <link rel="stylesheet" href="css/header.css">
-  <link rel="stylesheet" href="css/softkey.css">
-  <link rel="stylesheet" href="css/input.css">
-  <link rel="stylesheet" href="css/list.css">
-  <link rel="stylesheet" href="css/sheet.css">
+  <link rel="stylesheet" href="css/root.css?v=003">
+  <link rel="stylesheet" href="css/header.css?v=003">
+  <link rel="stylesheet" href="css/softkey.css?v=003">
+  <link rel="stylesheet" href="css/input.css?v=003">
+  <link rel="stylesheet" href="css/list.css?v=003">
+  <link rel="stylesheet" href="css/sheet.css?v=003">
 </head>
 <body>
   <div id="root">
 
     <!-- Panel: Enter email -->
     <div id="panel-email" class="panel" active="false">
-      <div class="header"><h1>Sign In</h1></div>
+      <div class="header">
+        <h1>Sign In</h1>
+        <button id="btn-email-next" class="header-action-btn" title="Next">→</button>
+      </div>
       <div class="panel-content">
         <div class="input-wrap">
           <input id="input-email" type="email" placeholder=" "
@@ -31,7 +34,11 @@
 
     <!-- Panel: Enter OTP -->
     <div id="panel-otp" class="panel" active="false">
-      <div class="header"><h1>Enter Code</h1></div>
+      <div class="header">
+        <button id="btn-otp-back" class="header-action-btn" title="Back">←</button>
+        <h1>Enter Code</h1>
+        <button id="btn-otp-verify" class="header-action-btn" title="Verify">→</button>
+      </div>
       <div class="panel-content">
         <p id="otp-hint" class="hint"></p>
         <div class="input-wrap">
@@ -44,7 +51,10 @@
 
     <!-- Panel: List of lists -->
     <div id="panel-lists" class="panel" active="false">
-      <div class="header"><h1>My Lists</h1></div>
+      <div class="header header-bar">
+        <h1>My Lists</h1>
+        <button id="btn-settings" class="header-action-btn">⚙</button>
+      </div>
       <div class="panel-content">
         <ul id="lists-ul" class="item-list"></ul>
         <p id="lists-empty" class="hint" style="display:none">No lists yet.</p>
@@ -53,7 +63,11 @@
 
     <!-- Panel: New list -->
     <div id="panel-new-list" class="panel" active="false">
-      <div class="header"><h1>New List</h1></div>
+      <div class="header">
+        <button id="btn-new-list-back" class="header-action-btn" title="Back">←</button>
+        <h1>New List</h1>
+        <button id="btn-new-list-create" class="header-action-btn" title="Create">✓</button>
+      </div>
       <div class="panel-content">
         <div class="input-wrap">
           <input id="input-list-name" type="text" placeholder=" " nav-selectable="true">
@@ -64,7 +78,11 @@
 
     <!-- Panel: New item -->
     <div id="panel-new-item" class="panel" active="false">
-      <div class="header"><h1 id="new-item-title">Add Item</h1></div>
+      <div class="header">
+        <button id="btn-new-item-back" class="header-action-btn" title="Back">←</button>
+        <h1 id="new-item-title">Add Item</h1>
+        <button id="btn-new-item-add" class="header-action-btn" title="Add">✓</button>
+      </div>
       <div class="panel-content">
         <div class="input-wrap">
           <input id="input-item-name" type="text" placeholder=" " nav-selectable="true">
@@ -75,7 +93,11 @@
 
     <!-- Panel: Single list -->
     <div id="panel-list" class="panel" active="false">
-      <div class="header"><h1 id="list-title">List</h1></div>
+      <div class="header">
+        <button id="btn-list-back" class="header-action-btn" title="Back">←</button>
+        <h1 id="list-title">List</h1>
+        <button id="btn-list-add" class="header-action-btn" title="Add Item">+</button>
+      </div>
       <div class="panel-content">
         <ul id="list-ul" class="item-list"></ul>
         <p id="list-empty" class="hint" style="display:none">Nothing here.</p>
@@ -84,7 +106,10 @@
 
     <!-- Panel: Options -->
     <div id="panel-options" class="panel" active="false">
-      <div class="header"><h1>Options</h1></div>
+      <div class="header">
+        <button id="btn-options-back" class="header-action-btn" title="Back">←</button>
+        <h1>Options</h1>
+      </div>
       <div class="panel-content">
         <ul class="item-list">
           <li class="options-row" nav-selectable="true" data-setting="none">
@@ -102,6 +127,12 @@
           <li class="options-row" nav-selectable="true" data-setting="displayMode" data-values="light,dark">
             <span class="options-label">Display Mode</span>
             <span class="options-value" id="opt-display-mode"></span>
+          </li>
+          <li class="options-row options-row-danger" nav-selectable="true" id="opt-log-out" data-setting="none">
+            <span class="options-label">Log Out</span>
+          </li>
+          <li class="options-row options-row-danger" nav-selectable="true" id="opt-log-out-all" data-setting="none">
+            <span class="options-label">Log Out of All Devices</span>
           </li>
         </ul>
       </div>
@@ -126,6 +157,6 @@
     </div>
 
   </div>
-  <script src="app.js?v=001"></script>
+  <script src="app.js?v=005"></script>
 </body>
 </html>
