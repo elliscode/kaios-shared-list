@@ -20,6 +20,24 @@
       "name": "elliscode",
       "url": "https://lists.elliscode.com"
     },
-    "permissions": {}
+    "permissions": {},
+    "deeplinks": {
+      "regex": "^https://lists\\.elliscode\\.com/\\?share=",
+      "action": "open-share"
+    },
+    "activities": {
+      "open-share": {
+        "href": "./index.html",
+        "disposition": "window",
+        "filters": {
+          "type": "url",
+          "url": {
+            "required": true,
+            "pattern": "https://lists\\.elliscode\\.com/\\?share=.{1,100}"
+          }
+        },
+        "returnValue": false
+      }
+    }
   }
 }

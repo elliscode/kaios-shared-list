@@ -25,6 +25,18 @@ var state = {
   currentList: {}
 };
 
+var pendingShare = null;
+
+if (navigator.mozSetMessageHandler) {
+  navigator.mozSetMessageHandler('activity', function (activity) {
+    var url = activity.source && activity.source.data && activity.source.data.url;
+    if (url) {
+      var match = url.match(/[?&]share=([^&]+)/);
+      if (match) pendingShare = match[1];
+    }
+  });
+}
+
 // ─── IndexedDB persistence ────────────────────────────────────────────────────
 
 var db = null;
@@ -421,6 +433,7 @@ function showListsPanel() {
   setSoftkeys('', 'OPEN', 'Options');
   renderLists();
   loadLists();
+  if (pendingShare) acceptShare();
 }
 
 function showOptionsPanel() {
@@ -474,6 +487,35 @@ function openShareSheet(name) {
       }
     }
   ]);
+}
+
+function acceptShare() {
+  var listId = pendingShare;
+  pendingShare = null;
+  post('/share', { csrf: state.csrf, list_id: listId }).then(function (res) {
+    if (res.status === 403) {
+      state.csrf = null;
+      localStorage.removeItem('csrf');
+      pendingShare = listId;
+      showEmailPanel();
+      return;
+    }
+    return res.json().catch(function () { return {}; }).then(function (data) {
+      if (res.ok) {
+        var name = data.name;
+        state.allLists[name] = data.list_id;
+        state.listCache[name] = { name: name, list_id: data.list_id, list: data.list || {} };
+        dbSaveList(name, data.list_id, data.list || {});
+        openList(name);
+      } else if (res.status === 404) {
+        showStatus('Share link not found', true);
+      } else {
+        showStatus('Could not join list', true);
+      }
+    });
+  }).catch(function () {
+    showStatus('Network error', true);
+  });
 }
 
 // ─── Screen: New List ─────────────────────────────────────────────────────────
@@ -810,6 +852,9 @@ document.getElementById('sk-center').addEventListener('click', function () {
 
 openDB(function () {
   applySettings();
+  var _urlParams = new URLSearchParams(window.location.search);
+  var _shareParam = _urlParams.get('share');
+  if (_shareParam) pendingShare = _shareParam;
   dbLoadAll(function (cache) {
     state.listCache = cache;
     if (state.csrf) {
