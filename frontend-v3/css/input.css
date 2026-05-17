@@ -35,3 +35,8 @@
   font-size: 11px;
   color: #6a0080;
 }
+
+body.dark .input-wrap input:not(:placeholder-shown) + label,
+body.dark .input-wrap input:focus + label {
+  color: #c77ddb;
+}

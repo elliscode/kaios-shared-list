@@ -50,4 +50,8 @@
   text-overflow: ellipsis;
 }
 
-/* Softkey is hidden at 241px+ via root.css */
+@media (min-width: 241px) {
+  #softkey {
+    display: none;
+  }
+}

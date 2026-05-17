@@ -80,10 +80,6 @@ html, body {
    Header nav buttons (←, +, ✓) handle all navigation.
 ================================================================ */
 @media (min-width: 241px) {
-  #softkey {
-    display: none;
-  }
-
   .panel-content {
     padding-bottom: 8px;
   }
@@ -94,6 +90,17 @@ html, body {
 }
 
 @media (min-width: 241px) and (max-width: 767px) {
+  * {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+
   /* List panels: edge-to-edge, no outer gutter */
   #panel-lists .panel-content,
   #panel-list .panel-content,
@@ -115,14 +122,6 @@ html, body {
   }
 }
 
-/* === Desktop single-column centered (480px+) === */
-@media (min-width: 480px) {
-  #root {
-    max-width: 400px;
-    margin: 0 auto;
-  }
-}
-
 /* === Desktop split pane (768px+) === */
 @media (min-width: 768px) {
   body {
@@ -130,10 +129,7 @@ html, body {
   }
 
   #root {
-    max-width: 860px;
-    border: 1px solid #e0d4ea;
-    border-radius: 8px 8px 0 0;
-    box-shadow: 0 8px 40px rgba(106, 0, 128, 0.15);
+    border-top: 1px solid #e0d4ea;
     flex-direction: row;
     overflow: hidden;
   }
@@ -234,8 +230,7 @@ body.dark .input-wrap label {
   }
 
   body.dark #root {
-    border-color: #3a2e42;
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    border-top-color: #3a2e42;
   }
 
   body.dark.authenticated.list-open #panel-lists {
