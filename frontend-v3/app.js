@@ -352,6 +352,9 @@ function handleSoftRight() {
 // ─── Screen: Email ────────────────────────────────────────────────────────────
 
 function showEmailPanel() {
+  document.getElementById('email-hint').textContent = pendingShare
+    ? 'Sign in to join the shared list.'
+    : 'We’ll send a one-time code to your email.';
   showPanel('panel-email');
   setSoftkeys('', 'NEXT', '');
 }
@@ -852,9 +855,8 @@ document.getElementById('sk-center').addEventListener('click', function () {
 
 openDB(function () {
   applySettings();
-  var _urlParams = new URLSearchParams(window.location.search);
-  var _shareParam = _urlParams.get('share');
-  if (_shareParam) pendingShare = _shareParam;
+  var _shareMatch = window.location.search.match(/[?&]share=([^&]+)/);
+  if (_shareMatch) pendingShare = decodeURIComponent(_shareMatch[1]);
   dbLoadAll(function (cache) {
     state.listCache = cache;
     if (state.csrf) {
