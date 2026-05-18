@@ -155,23 +155,8 @@ body.dark .options-row-danger[nav-selected="true"] {
   }
 }
 
-/* === Desktop: selected list highlight in sidebar === */
-@media (min-width: 768px) {
-  .list-row[data-current-list="true"] {
-    background: #ede0f0;
-    font-weight: 600;
-  }
-
-  body.dark .list-row[data-current-list="true"] {
-    background: #3a2a3e;
-    font-weight: 600;
-  }
-}
-
-/* === iPhone / mobile web (241px – 767px) ======================
-   Larger touch targets, iOS-standard 16px type, 16px side inset.
-================================================================ */
-@media (min-width: 241px) and (max-width: 767px) {
+/* === All screens above KaiOS (241px+) — larger touch targets === */
+@media (min-width: 241px) {
   .list-row {
     padding: 14px 16px;
     font-size: 16px;

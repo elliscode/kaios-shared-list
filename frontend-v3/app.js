@@ -1,7 +1,7 @@
 'use strict';
 
 var API      = 'https://api.dev-lists.elliscode.com'; // TODO: change to api.lists.elliscode.com for prod
-var APP_HOST = 'https://dev-lists.elliscode.com';     // TODO: change to lists.elliscode.com for prod
+var APP_HOST = 'https://lists.elliscode.com';     // TODO: change to lists.elliscode.com for prod
 
 var SETTING_LABELS = {
   listOrder:   { alpha: 'Alphabetical', date: 'Date Added' },
@@ -26,10 +26,6 @@ var state = {
 };
 
 var pendingShare = null;
-
-function isSplitMode() {
-  return window.innerWidth >= 768;
-}
 
 if (navigator.mozSetMessageHandler) {
   navigator.mozSetMessageHandler('activity', function (activity) {
@@ -360,7 +356,6 @@ function handleSoftLeft() {
   } else if (panel.id === 'panel-new-item') {
     showListPanel(state.currentListName);
   } else if (panel.id === 'panel-list') {
-    document.body.classList.remove('list-open');
     showListsPanel();
   } else if (panel.id === 'panel-options') {
     showListsPanel();
@@ -381,7 +376,6 @@ function handleSoftRight() {
 // ─── Screen: Email ────────────────────────────────────────────────────────────
 
 function showEmailPanel() {
-  document.body.classList.remove('authenticated', 'list-open');
   document.getElementById('email-hint').textContent = pendingShare
     ? 'Sign in to join the shared list.'
     : "We'll send a one-time code to your email.";
@@ -459,7 +453,6 @@ document.getElementById('input-otp').addEventListener('keydown', function (e) {
 // ─── Screen: Lists ────────────────────────────────────────────────────────────
 
 function showListsPanel() {
-  document.body.classList.add('authenticated');
   Object.keys(state.listCache).forEach(function (name) {
     state.allLists[name] = state.listCache[name].list_id;
   });
@@ -666,12 +659,6 @@ function renderLists() {
 }
 
 function openList(name) {
-  document.querySelectorAll('[data-current-list]').forEach(function (el) {
-    el.removeAttribute('data-current-list');
-  });
-  var marker = document.querySelector('[data-list-name="' + name + '"]');
-  if (marker) marker.setAttribute('data-current-list', 'true');
-
   var cached = state.listCache[name];
   state.currentListName = name;
   state.currentListId = cached ? cached.list_id : state.allLists[name];
@@ -702,7 +689,6 @@ function openList(name) {
 // ─── Screen: List ─────────────────────────────────────────────────────────────
 
 function showListPanel(name) {
-  if (isSplitMode()) document.body.classList.add('list-open');
   document.getElementById('list-title').textContent = name;
   showPanel('panel-list');
   setSoftkeys('Back', 'CHECK', 'Add');
