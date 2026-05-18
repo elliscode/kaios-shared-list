@@ -1,0 +1,42 @@
+.input-wrap {
+  position: relative;
+  margin: 16px 4px 8px;
+}
+
+.input-wrap input {
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid #ccc;
+  padding: 14px 0 4px;
+  font-size: 14px;
+  background: transparent;
+  outline: none;
+  color: #111;
+  -moz-appearance: textfield;
+}
+
+.input-wrap input:focus {
+  border-bottom-color: #6a0080;
+}
+
+.input-wrap label {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  font-size: 14px;
+  color: #999;
+  pointer-events: none;
+  transition: top 0.15s, font-size 0.15s, color 0.15s;
+}
+
+.input-wrap input:not(:placeholder-shown) + label,
+.input-wrap input:focus + label {
+  top: 0;
+  font-size: 11px;
+  color: #6a0080;
+}
+
+body.dark .input-wrap input:not(:placeholder-shown) + label,
+body.dark .input-wrap input:focus + label {
+  color: #c77ddb;
+}

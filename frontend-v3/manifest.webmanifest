@@ -1,0 +1,43 @@
+{
+  "id": "shared-list",
+  "name": "Shared List",
+  "short_name": "Lists",
+  "description": "Collaborative shared lists",
+  "lang": "en-US",
+  "theme_color": "#6a0080",
+  "background_color": "#ffffff",
+  "orientation": "natural",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "icons": [
+    { "src": "/icons/kaios_56.png",  "sizes": "56x56",   "type": "image/png" },
+    { "src": "/icons/kaios_112.png", "sizes": "112x112", "type": "image/png" }
+  ],
+  "b2g_features": {
+    "version": "1.0.0",
+    "type": "web",
+    "developer": {
+      "name": "elliscode",
+      "url": "https://lists.elliscode.com"
+    },
+    "permissions": {},
+    "deeplinks": {
+      "regex": "^https://lists\\.elliscode\\.com/\\?share=",
+      "action": "open-share"
+    },
+    "activities": {
+      "open-share": {
+        "href": "./index.html",
+        "disposition": "window",
+        "filters": {
+          "type": "url",
+          "url": {
+            "required": true,
+            "pattern": "https://lists\\.elliscode\\.com/\\?share=.{1,100}"
+          }
+        },
+        "returnValue": false
+      }
+    }
+  }
+}
