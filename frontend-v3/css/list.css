@@ -101,6 +101,32 @@
   opacity: 1;
 }
 
+/* === Delete list row & danger sheet items === */
+.delete-list-row,
+.list-row.danger {
+  color: #c0392b;
+  border-top: 1px solid #eee;
+  margin-top: 4px;
+}
+
+.delete-list-row[nav-selected="true"],
+.list-row.danger[nav-selected="true"] {
+  background: #c0392b;
+  color: #fff;
+}
+
+body.dark .delete-list-row,
+body.dark .list-row.danger {
+  color: #e57373;
+  border-top-color: #2e2e30;
+}
+
+body.dark .delete-list-row[nav-selected="true"],
+body.dark .list-row.danger[nav-selected="true"] {
+  background: #c0392b;
+  color: #fff;
+}
+
 /* === Danger action rows (Log Out etc.) === */
 .options-row-danger {
   color: #c0392b;
@@ -256,6 +282,14 @@ body.dark .options-row-danger[nav-selected="true"] {
 
   body.dark.using-keyboard .options-row[nav-selected="true"] .options-value {
     color: rgba(255, 255, 255, 0.75);
+  }
+
+  /* Danger rows always show red when selected — !important beats the
+     using-keyboard purple rule which has higher specificity (0,3,1) */
+  .delete-list-row[nav-selected="true"],
+  .list-row.danger[nav-selected="true"] {
+    background: #c0392b !important;
+    color: #fff !important;
   }
 }
 

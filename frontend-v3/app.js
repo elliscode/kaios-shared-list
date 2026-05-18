@@ -179,6 +179,8 @@ function updateListsSoftkey(el) {
   } else if (panel.id === 'panel-list') {
     if (el.classList.contains('sweep-row')) {
       setSoftkeys('Back', 'CLEAR', 'Add');
+    } else if (el.classList.contains('delete-list-row')) {
+      setSoftkeys('Back', 'DELETE', 'Add');
     } else {
       setSoftkeys('Back', 'CHECK', 'Add');
     }
@@ -220,13 +222,23 @@ function isSheetOpen() {
   return document.getElementById('sheet').getAttribute('active') === 'true';
 }
 
-function openSheet(items) {
+function openSheet(items, header) {
   _sheetSavedFocus = focused();
+
+  var sheetHeader = document.getElementById('sheet-header');
+  if (header) {
+    document.getElementById('sheet-title').textContent = header.title;
+    document.getElementById('sheet-note').textContent = header.note;
+    sheetHeader.setAttribute('active', 'true');
+  } else {
+    sheetHeader.setAttribute('active', 'false');
+  }
+
   var ul = document.getElementById('sheet-ul');
   ul.innerHTML = '';
   items.forEach(function (item) {
     var li = document.createElement('li');
-    li.className = 'list-row';
+    li.className = 'list-row' + (item.danger ? ' danger' : '');
     li.setAttribute('nav-selectable', 'true');
     li.textContent = item.label;
     li.addEventListener('click', item.action);
@@ -701,6 +713,7 @@ function softRenderListItems(focusKey) {
   var cur = focused();
   var targetKey = focusKey || (cur ? cur.getAttribute('data-item-key') : null);
   var sweepFocused = cur ? cur.classList.contains('sweep-row') : false;
+  var deleteFocused = cur ? cur.classList.contains('delete-list-row') : false;
   var container = document.querySelector('#panel-list .panel-content');
   var savedScrollTop = container ? container.scrollTop : 0;
   renderListItems();
@@ -711,6 +724,9 @@ function softRenderListItems(focusKey) {
   } else if (sweepFocused) {
     var sweep = document.querySelector('.sweep-row');
     if (sweep) setFocus(sweep);
+  } else if (deleteFocused) {
+    var del = document.querySelector('.delete-list-row');
+    if (del) setFocus(del);
   }
 }
 
@@ -746,15 +762,19 @@ function renderListItems() {
     ul.appendChild(li);
   });
 
-  var hasCrossed = items.some(function (pair) { return pair[1].crossed; });
-  if (hasCrossed) {
-    var sweep = document.createElement('li');
-    sweep.className = 'list-row sweep-row';
-    sweep.setAttribute('nav-selectable', 'true');
-    sweep.textContent = 'Clear Crossed Items';
-    sweep.addEventListener('click', doSweep);
-    ul.appendChild(sweep);
-  }
+  var sweep = document.createElement('li');
+  sweep.className = 'list-row sweep-row';
+  sweep.setAttribute('nav-selectable', 'true');
+  sweep.textContent = 'Clear Crossed Items';
+  sweep.addEventListener('click', doSweep);
+  ul.appendChild(sweep);
+
+  var deleteRow = document.createElement('li');
+  deleteRow.className = 'list-row delete-list-row';
+  deleteRow.setAttribute('nav-selectable', 'true');
+  deleteRow.textContent = 'Delete List';
+  deleteRow.addEventListener('click', confirmDeleteList);
+  ul.appendChild(deleteRow);
 
   var first = ul.querySelector('[nav-selectable="true"]');
   if (first) setFocus(first);
@@ -767,6 +787,47 @@ function toggleItem(key) {
   item.updated = nowSec();
   softRenderListItems();
   queueSync();
+}
+
+function confirmDeleteList() {
+  var name = state.currentListName;
+  openSheet(
+    [
+      {
+        label: 'Yes, delete "' + name + '"',
+        danger: true,
+        action: function () { closeSheet(); doDeleteList(); }
+      },
+      {
+        label: 'No, keep list',
+        action: function () { closeSheet(); }
+      }
+    ],
+    {
+      title: 'Delete "' + name + '"?',
+      note: 'This only removes the list from your account. Anyone you\'ve shared it with will still have access until they delete it themselves.'
+    }
+  );
+}
+
+function doDeleteList() {
+  var name = state.currentListName;
+  post('/delete', { csrf: state.csrf, name: name }).then(function (res) {
+    if (res.ok) {
+      delete state.allLists[name];
+      delete state.listCache[name];
+      dbDeleteList(name);
+      document.body.classList.remove('list-open');
+      showListsPanel();
+      showStatus('"' + name + '" deleted', false);
+    } else {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        showStatus(data.message || 'Could not delete list', true);
+      });
+    }
+  }).catch(function () {
+    showStatus('Network error', true);
+  });
 }
 
 function doSweep() {

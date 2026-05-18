@@ -4,7 +4,7 @@
   top: 0;
   left: 0;
   right: 0;
-  bottom: 30px;
+  bottom: 30px; /* KaiOS: above softkey bar */
   background: rgba(0, 0, 0, 0.4);
   z-index: 14;
 }
@@ -16,7 +16,7 @@
 #sheet {
   display: none;
   position: fixed;
-  bottom: 30px;
+  bottom: 30px; /* KaiOS: above softkey bar */
   left: 0;
   right: 0;
   background: #fff;
@@ -28,8 +28,61 @@
   display: block;
 }
 
+#sheet-header {
+  display: none;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+#sheet-header[active="true"] {
+  display: block;
+}
+
+#sheet-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+#sheet-note {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.5;
+}
+
 #sheet-ul {
   list-style: none;
   margin: 0;
   padding: 0;
+}
+
+/* At 241px+ the softkey bar is gone — sheet sits at the bottom edge */
+@media (min-width: 241px) {
+  #sheet-overlay {
+    bottom: 0;
+  }
+
+  #sheet {
+    bottom: 0;
+  }
+}
+
+/* Dark mode */
+body.dark #sheet {
+  background: #1c1c1e;
+  border-top-color: #9b27af;
+}
+
+body.dark #sheet-header {
+  border-bottom-color: #2e2e30;
+}
+
+body.dark #sheet-title {
+  color: #e5e7eb;
+}
+
+body.dark #sheet-note {
+  color: #8b8b93;
 }
