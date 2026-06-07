@@ -106,6 +106,92 @@ html, body {
   }
 }
 
+/* === Desktop polish (≥768px) — roomier chrome, contained content === */
+@media (min-width: 768px) {
+  .header {
+    padding: 10px 24px;
+    min-height: 52px;
+  }
+
+  .header h1 {
+    font-size: 18px;
+  }
+
+  #panel-lists .panel-content,
+  #panel-list .panel-content,
+  #panel-options .panel-content {
+    padding: 0 24px;
+  }
+
+  #panel-email .panel-content,
+  #panel-otp .panel-content,
+  #panel-new-list .panel-content,
+  #panel-new-item .panel-content {
+    padding: 32px 24px;
+  }
+
+  /* Split view: lists sidebar on the left, list contents on the right */
+  body.authenticated #root {
+    flex-direction: row;
+  }
+
+  body.authenticated #panel-lists {
+    display: flex !important;
+    width: 320px;
+    flex-shrink: 0;
+    border-right: 1px solid #eee;
+  }
+
+  body.authenticated #panel-list {
+    display: flex !important;
+    flex: 1;
+  }
+
+  body.dark.authenticated #panel-lists {
+    border-right-color: #2e2e30;
+  }
+
+  /* Detail pane placeholder shown until a list is opened */
+  body.authenticated #panel-list[active="false"] > .panel-content {
+    display: none;
+  }
+
+  body.authenticated #panel-list[active="false"] #list-pane-placeholder {
+    display: flex;
+  }
+
+  body.authenticated #panel-list[active="false"] #list-title,
+  body.authenticated #panel-list[active="false"] #btn-list-back,
+  body.authenticated #panel-list[active="false"] #btn-list-add {
+    display: none;
+  }
+
+  /* Overlay panels (new list/item, options) stack on top of the split view */
+  body.authenticated #panel-new-list,
+  body.authenticated #panel-new-item,
+  body.authenticated #panel-options {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: #fff;
+  }
+
+  body.dark.authenticated #panel-new-list,
+  body.dark.authenticated #panel-new-item,
+  body.dark.authenticated #panel-options {
+    background: #1c1c1e;
+  }
+}
+
+#list-pane-placeholder {
+  display: none;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
 /* === Text selection disabled on touch screens only (241px – 767px) === */
 @media (min-width: 241px) and (max-width: 767px) {
   * {

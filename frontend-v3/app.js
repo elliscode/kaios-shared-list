@@ -376,6 +376,7 @@ function handleSoftRight() {
 // ─── Screen: Email ────────────────────────────────────────────────────────────
 
 function showEmailPanel() {
+  document.body.classList.remove('authenticated');
   document.getElementById('email-hint').textContent = pendingShare
     ? 'Sign in to join the shared list.'
     : "We'll send a one-time code to your email.";
@@ -453,6 +454,7 @@ document.getElementById('input-otp').addEventListener('keydown', function (e) {
 // ─── Screen: Lists ────────────────────────────────────────────────────────────
 
 function showListsPanel() {
+  document.body.classList.add('authenticated');
   Object.keys(state.listCache).forEach(function (name) {
     state.allLists[name] = state.listCache[name].list_id;
   });
@@ -828,7 +830,7 @@ function doSweep() {
     }
   });
   if (!changed) {
-    showStatus('Nothing to sweep', false);
+    showStatus('Nothing to clear', false);
     return;
   }
   softRenderListItems();

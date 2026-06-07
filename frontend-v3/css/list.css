@@ -278,6 +278,34 @@ body.dark .options-row-danger[nav-selected="true"] {
   }
 }
 
+/* === Desktop polish (≥768px) — roomier rows, richer hover === */
+@media (min-width: 768px) {
+  .list-row,
+  .new-list-row,
+  .sweep-row,
+  .options-row,
+  .delete-list-row {
+    padding: 16px 20px;
+  }
+
+  .list-row,
+  .options-row {
+    transition: background 0.12s ease;
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) {
+  .list-row:hover:not([nav-selected="true"]),
+  .options-row:hover:not([nav-selected="true"]) {
+    background: #f0e4f4;
+  }
+
+  body.dark .list-row:hover:not([nav-selected="true"]),
+  body.dark .options-row:hover:not([nav-selected="true"]) {
+    background: #332a3a;
+  }
+}
+
 /* === Hover & active states (mouse/trackpad only) === */
 @media (hover: hover) {
   .list-row:hover:not([nav-selected="true"]) {
