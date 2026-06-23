@@ -5,14 +5,61 @@
 }
 
 .list-row {
+  display: flex;
+  align-items: center;
   padding: 10px 8px;
   border-bottom: 1px solid #eee;
   font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
   outline: none;
+}
+
+.list-row-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-share-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: #9b27af;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+body.dark .row-share-btn {
+  color: #c77ddb;
+}
+
+.row-share-btn:hover {
+  background: rgba(155, 39, 175, 0.1);
+}
+
+@media (min-width: 241px) {
+  .row-share-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) {
+  .row-share-btn {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .list-row:hover .row-share-btn,
+  body.using-keyboard .list-row[nav-selected="true"] .row-share-btn {
+    opacity: 1;
+  }
 }
 
 .list-row[nav-selected="true"] {
@@ -330,5 +377,33 @@ body.dark .options-row:active {
   body.dark .list-row:hover:not([nav-selected="true"]),
   body.dark .options-row:hover:not([nav-selected="true"]) {
     background: #2a2030;
+  }
+}
+
+/* === Fix: in mouse/touch mode hover must win over nav-selected (≥241px) ===
+   The nav-selected state is suppressed to transparent in non-keyboard mode,
+   but the :not([nav-selected]) guard on the rules above still blocks hover
+   on whichever item has focus. These higher-specificity rules override that. */
+@media (min-width: 241px) and (hover: hover) {
+  body:not(.using-keyboard) .list-row:hover,
+  body:not(.using-keyboard) .options-row:hover {
+    background: #f5f0f7;
+  }
+
+  body.dark:not(.using-keyboard) .list-row:hover,
+  body.dark:not(.using-keyboard) .options-row:hover {
+    background: #2a2030;
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) {
+  body:not(.using-keyboard) .list-row:hover,
+  body:not(.using-keyboard) .options-row:hover {
+    background: #f0e4f4;
+  }
+
+  body.dark:not(.using-keyboard) .list-row:hover,
+  body.dark:not(.using-keyboard) .options-row:hover {
+    background: #332a3a;
   }
 }

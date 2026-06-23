@@ -1,6 +1,5 @@
 import re
 
-FLOAT_REGEX = "^[\\-]{0,1}\\d*[\\.]{0,1}\\d+$"
 ID_REGEX = "^[a-zA-Z0-9]{10}$"
 
 
@@ -15,14 +14,6 @@ def validate_unix_time(value):
 def validate_id(value):
     if isinstance(value, str) and re.match(ID_REGEX, value):
         return value
-    return None
-
-
-def validate_decimal(value):
-    if isinstance(value, str) and re.match(FLOAT_REGEX, value):
-        return value
-    elif isinstance(value, float):
-        return str(value)
     return None
 
 
@@ -63,30 +54,6 @@ def validate_schema(value, schema):
     return None
 
 
-LOCATION_SHARING_SCHEMA = {
-    "type": dict,
-    "fields": [
-        {"type": validate_id, "name": "id"},
-        {"type": validate_decimal, "name": "lat"},
-        {"type": validate_decimal, "name": "lon"},
-    ],
-}
-
-LOCATION_VIEWING_SCHEMA = {
-    "type": dict,
-    "fields": [
-        {"type": validate_id, "name": "id"},
-    ],
-}
-
-
-TOKEN_REQUEST_SCHEMA = {
-    "type": dict,
-    "fields": [
-        {"type": validate_id, "name": "id"},
-    ],
-}
-
 LIST_SCHEMA = {
     "type": dict,
     "fields": [
@@ -116,33 +83,5 @@ if __name__ == "__main__":
                 "beef jerky": {"updated": 1234567893, "display": "beef jerky", "crossed": True, "deleted": False},
             },
             LIST_SCHEMA,
-        )
-    )
-    print(
-        validate_schema(
-            {
-                "lat": "40.5123",
-                "lon": "-71.4123",
-                "id": "a5123zZmfs",
-            },
-            LOCATION_SHARING_SCHEMA,
-        )
-    )
-    print(
-        validate_schema(
-            {
-                "lat": "40W",
-                "lon": "-71S",
-                "id": "My-id",
-            },
-            LOCATION_SHARING_SCHEMA,
-        )
-    )
-    print(
-        validate_schema(
-            {
-                "id": "a5123zZmfs",
-            },
-            LOCATION_VIEWING_SCHEMA,
         )
     )

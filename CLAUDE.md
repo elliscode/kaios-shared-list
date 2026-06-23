@@ -53,8 +53,8 @@ No framework is decided yet. The backend is being completed first.
 
 ## Auth flow
 
-1. `POST /otp` — client submits email, server sends a 6-digit OTP via SES (not yet wired in router)
-2. `POST /login` — client submits email + OTP, server returns session cookie + `x-csrf-token` header (not yet wired in router)
+1. `POST /otp` — client submits email, server sends a 6-digit OTP via SES
+2. `POST /login` — client submits email + OTP, server returns session cookie + `x-csrf-token` header
 3. Authenticated routes — require session cookie + `csrf` field in request body
 
 ## DynamoDB key patterns

@@ -517,7 +517,7 @@ function openShareSheet(name) {
   }
   var url = APP_HOST + '/?share=' + listId;
   var msg = 'Join my list "' + name + '": ' + url;
-  openSheet([
+  var items = [
     {
       label: 'Messages',
       action: function () {
@@ -537,7 +537,19 @@ function openShareSheet(name) {
         a.click();
       }
     }
-  ]);
+  ];
+  if (window.innerWidth > 240) {
+    items.push({
+      label: 'Copy link',
+      action: function () {
+        closeSheet();
+        navigator.clipboard.writeText(url).then(function () {
+          showStatus('Link copied!');
+        });
+      }
+    });
+  }
+  openSheet(items, { title: 'Share list', note: 'Choose how to share' });
 }
 
 function acceptShare() {
@@ -641,10 +653,23 @@ function renderLists() {
     li.className = 'list-row';
     li.setAttribute('nav-selectable', 'true');
     li.setAttribute('data-list-name', name);
-    li.textContent = name;
-    li.addEventListener('click', function () {
-      openList(name);
+
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'list-row-name';
+    nameSpan.textContent = name;
+    li.appendChild(nameSpan);
+
+    var shareBtn = document.createElement('button');
+    shareBtn.className = 'row-share-btn';
+    shareBtn.textContent = '⬆';
+    shareBtn.title = 'Share';
+    shareBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openShareSheet(name);
     });
+    li.appendChild(shareBtn);
+
+    li.addEventListener('click', function () { openList(name); });
     ul.appendChild(li);
   });
 
@@ -967,6 +992,7 @@ document.getElementById('btn-new-item-add').addEventListener('click', submitNewI
 document.getElementById('btn-list-back').addEventListener('click', handleSoftLeft);
 document.getElementById('btn-list-add').addEventListener('click', showNewItemPanel);
 document.getElementById('btn-options-back').addEventListener('click', handleSoftLeft);
+document.getElementById('sheet-overlay').addEventListener('click', closeSheet);
 
 openDB(function () {
   applySettings();

@@ -34,9 +34,7 @@
   border-bottom: 1px solid #eee;
 }
 
-#sheet-header[active="true"] {
-  display: block;
-}
+/* Header only shown in modal mode (≥241px) */
 
 #sheet-title {
   font-size: 15px;
@@ -58,14 +56,34 @@
   padding: 0;
 }
 
-/* At 241px+ the softkey bar is gone — sheet sits at the bottom edge */
+/* At 241px+ the softkey bar is gone — sheet becomes a centered modal */
 @media (min-width: 241px) {
   #sheet-overlay {
     bottom: 0;
   }
 
   #sheet {
-    bottom: 0;
+    bottom: auto;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    width: 90%;
+    max-width: 400px;
+    transform: translate(-50%, -50%);
+    border-top: none;
+    border: 2px solid #6a0080;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+
+  #sheet-header[active="true"] {
+    display: block;
+  }
+
+  body.dark #sheet {
+    border-color: #9b27af;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   }
 }
 

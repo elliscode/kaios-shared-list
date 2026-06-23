@@ -85,5 +85,6 @@ def delete_list_route(event, user_data, body):
 
 @authenticate
 def log_out_all_route(event, user_data, body):
-    delete_active_tokens(user_data["key2"])
+    if user_data:
+        delete_active_tokens(user_data["key2"])
     return format_response(event=event, http_code=200, body={"message": "Logged out of all devices"})
