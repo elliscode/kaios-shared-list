@@ -595,7 +595,27 @@ function submitNewList() {
     showStatus('Enter a list name', true);
     return;
   }
-  openList(name);
+  state.allLists[name] = state.allLists[name] || null;
+  showPanel('panel-lists');
+  setSoftkeys('', 'OPEN', 'Options');
+  renderLists();
+
+  post('/list', { csrf: state.csrf, name: name, list: {} }).then(function (res) {
+    if (res.status === 403) {
+      state.csrf = null;
+      localStorage.removeItem('csrf');
+      showEmailPanel();
+      return;
+    }
+    return res.json().then(function (data) {
+      state.allLists[data.name] = data.list_id;
+      state.listCache[data.name] = { name: data.name, list_id: data.list_id, list: data.list || {} };
+      dbSaveList(data.name, data.list_id, data.list || {});
+      if (activePanel() && activePanel().id === 'panel-lists') renderLists();
+    });
+  }).catch(function () {
+    showStatus('Could not create list', true);
+  });
 }
 
 document.getElementById('input-list-name').addEventListener('keydown', function (e) {
@@ -888,9 +908,9 @@ function submitNewItem() {
     state.currentList[key] = { display: display, crossed: false, deleted: false, updated: nowSec() };
   }
   queueSync();
-  showListPanel(state.currentListName);
-  var newEl = document.querySelector('[data-item-key="' + key + '"]');
-  if (newEl) setFocus(newEl);
+  showStatus('Added \'' + display + '\' to \'' + state.currentListName + '\'!');
+  document.getElementById('input-item-name').value = '';
+  document.getElementById('input-item-name').focus();
 }
 
 document.getElementById('input-item-name').addEventListener('keydown', function (e) {
