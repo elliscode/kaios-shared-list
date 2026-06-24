@@ -1054,7 +1054,7 @@ function displayAd() {
   });
 }
 
-if (window.location.protocol === 'app:') {
+if (window.location.hostname.endsWith('.localhost')) {
   document.addEventListener('DOMContentLoaded', function () {
     displayAd();
     _adInterval = setInterval(displayAd, 300 * 1000);

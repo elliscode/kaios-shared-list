@@ -8,12 +8,12 @@
   "start_url": "/index.html",
   "icons": [
     {
-      "src": "/assets/icons/kaios_56.png",
+      "src": "/assets/icons/kaios-56.png",
       "type": "image/png",
       "sizes": "56x56"
     },
     {
-      "src": "/assets/icons/kaios_112.png",
+      "src": "/assets/icons/kaios-112.png",
       "type": "image/png",
       "sizes": "112x112"
     }
