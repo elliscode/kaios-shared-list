@@ -6,8 +6,8 @@
 
 html, body {
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  height: auto;
+  overflow: auto;
   font-family: sans-serif;
   font-size: 14px;
   background: #fff;
@@ -16,7 +16,7 @@ html, body {
 
 #root {
   width: 100%;
-  height: 100%;
+  height: auto;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -26,8 +26,8 @@ html, body {
   display: none;
   flex-direction: column;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  height: auto;
+  overflow: visible;
 }
 
 .panel[active="true"] {
@@ -36,7 +36,7 @@ html, body {
 
 .panel-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: visible;
   padding: 8px;
   padding-bottom: 38px; /* KaiOS: room for 30px softkey bar */
 }
@@ -77,7 +77,22 @@ html, body {
 
 /* === All screens above KaiOS (241px+) ========================= */
 @media (min-width: 241px) {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #root {
+    height: 100%;
+  }
+
+  .panel {
+    height: 100%;
+    overflow: hidden;
+  }
+
   .panel-content {
+    overflow-y: auto;
     padding-bottom: 8px;
   }
 
@@ -171,7 +186,10 @@ html, body {
   body.authenticated #panel-new-item,
   body.authenticated #panel-options {
     position: absolute;
-    inset: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     z-index: 5;
     background: #fff;
   }
@@ -258,4 +276,24 @@ body.dark .input-wrap input {
 
 body.dark .input-wrap label {
   color: #8b8b93;
+}
+
+#ad-container {
+  width: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.nav-selectable-ad {
+  width: 240px;
+  max-width: 240px;
+  min-width: 240px;
+  height: 60px;
+  max-height: 60px;
+  min-height: 60px;
+  overflow: hidden;
+}
+
+.nav-selectable-ad:focus {
+  outline: 2px solid #6a0080;
 }

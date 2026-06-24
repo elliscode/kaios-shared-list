@@ -141,7 +141,9 @@ function selectables() {
   }
   var panel = activePanel();
   if (!panel) return [];
-  return Array.prototype.slice.call(panel.querySelectorAll('[nav-selectable="true"]'));
+  var navEls = Array.prototype.slice.call(panel.querySelectorAll('[nav-selectable="true"]'));
+  var adEls  = Array.prototype.slice.call(panel.querySelectorAll('.nav-selectable-ad'));
+  return adEls.concat(navEls);
 }
 
 function focused() {
@@ -476,6 +478,7 @@ function showOptionsPanel() {
 
 function logOut() {
   state.csrf = null;
+  state.allLists = {};
   localStorage.removeItem('csrf');
   document.body.classList.remove('authenticated', 'list-open');
   showEmailPanel();
@@ -636,6 +639,18 @@ function loadLists() {
     return res.json().then(function (data) {
       if (data.user_id) localStorage.setItem('user_id', data.user_id);
       state.allLists = data.list_names || {};
+      Object.keys(state.allLists).forEach(function (name) {
+        if (!state.listCache[name]) {
+          state.listCache[name] = { name: name, list_id: state.allLists[name], list: {} };
+          dbSaveList(name, state.allLists[name], {});
+        }
+      });
+      Object.keys(state.listCache).forEach(function (name) {
+        if (!(name in state.allLists)) {
+          dbDeleteList(name);
+          delete state.listCache[name];
+        }
+      });
       if (activePanel() && activePanel().id === 'panel-lists') {
         var cur = focused();
         var focusedName = cur ? cur.getAttribute('data-list-name') : null;
@@ -1017,6 +1032,35 @@ document.getElementById('btn-new-list-create').addEventListener('click', submitN
 document.getElementById('btn-new-item-back').addEventListener('click', handleSoftLeft);
 document.getElementById('btn-new-item-add').addEventListener('click', submitNewItem);
 document.getElementById('btn-list-back').addEventListener('click', handleSoftLeft);
+// ─── KaiOS Ads ────────────────────────────────────────────────────────────────
+
+var _adInterval = null;
+
+function displayAd() {
+  var old = document.querySelectorAll('.nav-selectable-ad');
+  for (var i = 0; i < old.length; i++) old[i].remove();
+
+  getKaiAd({
+    publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
+    app: 'kaiosshaaredlist',
+    slot: 'topbarad',
+    h: 60,
+    w: 240,
+    container: document.getElementById('ad-container'),
+    onerror: function (err) { console.log('Ad error', err); },
+    onready: function (ad) {
+      ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
+    }
+  });
+}
+
+if (window.location.protocol === 'app:') {
+  document.addEventListener('DOMContentLoaded', function () {
+    displayAd();
+    _adInterval = setInterval(displayAd, 300 * 1000);
+  });
+}
+
 document.getElementById('btn-list-add').addEventListener('click', showNewItemPanel);
 document.getElementById('btn-options-back').addEventListener('click', handleSoftLeft);
 document.getElementById('sheet-overlay').addEventListener('click', closeSheet);

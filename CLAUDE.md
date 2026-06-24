@@ -1,11 +1,13 @@
 # kaios-shared-list
 
-A shared list app backend running on AWS Lambda, fronted by API Gateway.
+A shared list app (backend + frontend) running on AWS Lambda, fronted by API Gateway, with a plain HTML/CSS/JS frontend deployed to S3 and packaged as a KaiOS app.
 
 ## Architecture
 
 ```
 DNS (lists.elliscode.com) → API Gateway → Lambda → DynamoDB
+                                  ↑
+                S3 (static frontend) / KaiOS store package
 ```
 
 ## Project structure
@@ -23,6 +25,20 @@ backend/
   dev-release.sh                # Zip + deploy to dev Lambda
   prod-release.sh               # Zip + deploy to prod Lambda
   pyproject.toml                # Dependencies (boto3) + black config
+frontend-v3/
+  index.html                    # Single-page app shell
+  app.js                        # All JS logic
+  css/
+    root.css                    # Base layout, panel system, responsive breakpoints
+    header.css                  # Header bar
+    softkey.css                 # KaiOS softkey bar
+    input.css                   # Input fields
+    list.css                    # List rows
+    sheet.css                   # Bottom sheet / modal
+  manifest.webmanifest          # KaiOS app manifest (linked only for KaiOS builds)
+  kaiads.v5.min.js              # KaiOS ads SDK
+  release.sh                    # Sync to S3 (web deployment)
+  kaios-release.sh              # Zip for KaiOS store submission
 openapi.yaml                    # API spec — keep in sync (see rule below)
 ```
 
@@ -35,21 +51,33 @@ This includes: new paths, changed request bodies, changed response shapes, new s
 ## Deploying
 
 ```bash
-# Dev
+# Backend — dev
 sh backend/dev-release.sh
 
-# Prod
+# Backend — prod
 sh backend/prod-release.sh
+
+# Frontend — web (S3 sync)
+cd frontend-v3 && sh release.sh
+
+# Frontend — KaiOS store (zip)
+cd frontend-v3 && sh kaios-release.sh
 ```
 
-## Frontend (planned)
+## Frontend
 
-The frontend will live in a `frontend/` directory at the repo root. It will be a single HTML/CSS/JS codebase that works in two modes:
+Plain HTML/CSS/JS, no framework. Works in two modes from the same codebase:
 
-- **KaiOS app** — 240px-wide screen, D-pad/key navigation, `manifest.json` for installability
-- **Web browser** — responsive layout, touch-capable, same functionality
+- **KaiOS app** — 240px-wide screen, D-pad/key navigation, softkey bar, KaiOS ads
+- **Web browser** — responsive layout (241px–767px mobile, 768px+ desktop split view), touch-capable
 
-No framework is decided yet. The backend is being completed first.
+### CSS layout approach
+
+The base styles (no media query) target KaiOS at 240px and use **natural document flow** — `html`/`body` are `height: auto; overflow: auto;` so the document scrolls natively. This is required because KaiOS's browser only scrolls reliably at the document level, not inside overflow containers.
+
+The `min-width: 241px` media query switches to the **fixed-height panel system** — `html`/`body` become `height: 100%; overflow: hidden;`, panels are viewport-height, and scroll happens inside `.panel-content`. This is the standard web app scroll pattern used on larger screens.
+
+Do not apply `overflow: hidden` or fixed heights to `html`/`body` in the base (KaiOS) styles.
 
 ## Auth flow
 
