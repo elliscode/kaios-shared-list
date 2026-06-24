@@ -660,12 +660,16 @@ function renderLists() {
   var empty = document.getElementById('lists-empty');
   ul.innerHTML = '';
 
+  empty.style.display = 'none';
+
   var names = Object.keys(state.allLists);
   if (settings.listOrder === 'alpha') names.sort();
+
   if (!names.length) {
-    empty.style.display = '';
-  } else {
-    empty.style.display = 'none';
+    var emptyLi = document.createElement('li');
+    emptyLi.className = 'list-row-empty';
+    emptyLi.textContent = 'No lists yet.';
+    ul.appendChild(emptyLi);
   }
 
   names.forEach(function (name) {
@@ -776,24 +780,27 @@ function renderListItems() {
       return a[1].display.localeCompare(b[1].display);
     });
 
-  if (!items.length) {
-    empty.style.display = '';
-    return;
-  }
   empty.style.display = 'none';
 
-  items.forEach(function (pair) {
-    var key = pair[0], item = pair[1];
-    var li = document.createElement('li');
-    li.className = 'list-row' + (item.crossed ? ' crossed' : '');
-    li.setAttribute('nav-selectable', 'true');
-    li.setAttribute('data-item-key', key);
-    li.textContent = item.display;
-    li.addEventListener('click', function () {
-      toggleItem(key);
+  if (!items.length) {
+    var emptyLi = document.createElement('li');
+    emptyLi.className = 'list-row-empty';
+    emptyLi.textContent = 'Nothing here.';
+    ul.appendChild(emptyLi);
+  } else {
+    items.forEach(function (pair) {
+      var key = pair[0], item = pair[1];
+      var li = document.createElement('li');
+      li.className = 'list-row' + (item.crossed ? ' crossed' : '');
+      li.setAttribute('nav-selectable', 'true');
+      li.setAttribute('data-item-key', key);
+      li.textContent = item.display;
+      li.addEventListener('click', function () {
+        toggleItem(key);
+      });
+      ul.appendChild(li);
     });
-    ul.appendChild(li);
-  });
+  }
 
   var sweep = document.createElement('li');
   sweep.className = 'list-row sweep-row';

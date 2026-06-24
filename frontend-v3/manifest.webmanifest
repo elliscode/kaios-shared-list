@@ -1,26 +1,35 @@
 {
-  "id": "shared-list",
-  "name": "Shared List",
-  "short_name": "Lists",
-  "description": "Collaborative shared lists",
+  "id": "shared-lists",
+  "name": "Shared Lists",
+  "description": "Shared Lists lets you create, manage, and share lists between you and others. Simply enter your email address to sign up, enter the one time code, and get started. Lists can be shared through SMS or email, and can be viewed on KaiOS devices, smartphones, and computers. All data is deleted after 1 year of inactivity.",
   "lang": "en-US",
-  "theme_color": "#6a0080",
-  "background_color": "#ffffff",
+  "theme_color": "#f5bcff",
   "orientation": "natural",
   "start_url": "/index.html",
-  "display": "standalone",
   "icons": [
-    { "src": "/icons/kaios_56.png",  "sizes": "56x56",   "type": "image/png" },
-    { "src": "/icons/kaios_112.png", "sizes": "112x112", "type": "image/png" }
+    {
+      "src": "/assets/icons/kaios_56.png",
+      "type": "image/png",
+      "sizes": "56x56"
+    },
+    {
+      "src": "/assets/icons/kaios_112.png",
+      "type": "image/png",
+      "sizes": "112x112"
+    }
   ],
   "b2g_features": {
-    "version": "1.0.0",
+    "subtitle": "Share lists with others",
     "type": "web",
-    "developer": {
-      "name": "elliscode",
-      "url": "https://lists.elliscode.com"
-    },
     "permissions": {},
+    "version": "3.0.0",
+    "developer": {
+        "name": "elliscode",
+        "url": "http://www.elliscode.com"
+    },
+		"dependencies": {
+			"ads-sdk": "1.5.8"
+		},
     "deeplinks": {
       "regex": "^https://lists\\.elliscode\\.com/\\?share=",
       "action": "open-share"
