@@ -118,7 +118,7 @@ function showPanel(id) {
   }
   var panel = document.getElementById(id);
   panel.setAttribute('active', 'true');
-  panel.scrollTop = 0;
+  window.scrollTo(0, 0);
   var first = panel.querySelector('[nav-selectable="true"]');
   if (first) setFocus(first);
 }
@@ -157,6 +157,7 @@ function setFocus(el) {
   var prev = focused();
   if (prev) prev.removeAttribute('nav-selected');
   el.setAttribute('nav-selected', 'true');
+  if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
   el.focus();
   scrollToVisible(el);
   updateListsSoftkey(el);
@@ -187,13 +188,18 @@ function updateListsSoftkey(el) {
 
 function scrollToVisible(el) {
   var container = el.closest('.panel-content') || el.closest('#sheet');
-  if (!container) return;
   var elRect = el.getBoundingClientRect();
-  var cRect = container.getBoundingClientRect();
-  if (elRect.bottom + SOFTKEY_H > cRect.bottom) {
-    container.scrollTop += elRect.bottom + SOFTKEY_H - cRect.bottom;
-  } else if (elRect.top < cRect.top) {
-    container.scrollTop -= cRect.top - elRect.top;
+  if (container && getComputedStyle(container).overflowY !== 'visible') {
+    var cRect = container.getBoundingClientRect();
+    if (elRect.bottom + SOFTKEY_H > cRect.bottom)
+      container.scrollTop += elRect.bottom + SOFTKEY_H - cRect.bottom;
+    else if (elRect.top < cRect.top)
+      container.scrollTop -= cRect.top - elRect.top;
+  } else {
+    if (elRect.bottom + SOFTKEY_H > window.innerHeight)
+      window.scrollBy(0, elRect.bottom + SOFTKEY_H - window.innerHeight);
+    else if (elRect.top < 0)
+      window.scrollBy(0, elRect.top);
   }
 }
 
