@@ -6,12 +6,12 @@
   <title>Shared List</title>
   <!-- Keepin this commented out for now because I only want installs through kaios store -->
   <!-- <link rel="manifest" href="manifest.webmanifest"> -->
-  <link rel="stylesheet" href="css/root.css?v=3.0.2">
-  <link rel="stylesheet" href="css/header.css?v=3.0.2">
-  <link rel="stylesheet" href="css/softkey.css?v=3.0.2">
-  <link rel="stylesheet" href="css/input.css?v=3.0.2">
-  <link rel="stylesheet" href="css/list.css?v=3.0.2">
-  <link rel="stylesheet" href="css/sheet.css?v=3.0.2">
+  <link rel="stylesheet" href="css/root.css?v=3.0.3">
+  <link rel="stylesheet" href="css/header.css?v=3.0.3">
+  <link rel="stylesheet" href="css/softkey.css?v=3.0.3">
+  <link rel="stylesheet" href="css/input.css?v=3.0.3">
+  <link rel="stylesheet" href="css/list.css?v=3.0.3">
+  <link rel="stylesheet" href="css/sheet.css?v=3.0.3">
 </head>
 <body>
   <div id="root">
@@ -118,7 +118,7 @@
         <ul class="item-list">
           <li class="options-row" nav-selectable="true" data-setting="none">
             <span class="options-label">Version</span>
-            <span class="options-value">3.0.2</span>
+            <span class="options-value">3.0.3</span>
           </li>
           <li class="options-row" nav-selectable="true" data-setting="none">
             <span class="options-label">User ID</span>
@@ -136,11 +136,59 @@
             <span class="options-label">Display Mode</span>
             <span class="options-value" id="opt-display-mode"></span>
           </li>
+          <li class="options-row" nav-selectable="true" data-setting="none" id="opt-faq">
+            <span class="options-label">FAQ</span>
+            <span class="options-value">→</span>
+          </li>
           <li class="options-row options-row-danger" nav-selectable="true" id="opt-log-out" data-setting="none">
             <span class="options-label">Log Out</span>
           </li>
           <li class="options-row options-row-danger" nav-selectable="true" id="opt-log-out-all" data-setting="none">
             <span class="options-label">Log Out of All Devices</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Panel: FAQ -->
+    <div id="panel-faq" class="panel" active="false">
+      <div class="header">
+        <button id="btn-faq-back" class="header-action-btn" title="Back">←</button>
+        <h1>FAQ</h1>
+      </div>
+      <div class="panel-content">
+        <ul class="item-list">
+          <li class="faq-row" nav-selectable="true">
+            <span class="faq-question">How do I share a list with someone?</span>
+            <span class="faq-answer">Open the list you want to share and press the left softkey (labelled "Share"). You can then send the link by text or email. Anyone who opens the link will have the list added to their app automatically.</span>
+          </li>
+          <li class="faq-row" nav-selectable="true">
+            <span class="faq-question">What do you do with my email?</span>
+            <span class="faq-answer">We only use your email to send you a one-time sign-in code. We don't store your email address in our database — once the code is sent, we don't keep a copy of it.</span>
+          </li>
+          <li class="faq-row" nav-selectable="true">
+            <span class="faq-question">Where is my data stored?</span>
+            <span class="faq-answer">Your lists are stored securely on Amazon Web Services (AWS), a trusted cloud platform used by millions of apps and businesses worldwide.</span>
+          </li>
+          <li class="faq-row" nav-selectable="true">
+            <span class="faq-question">How long is my data kept?</span>
+            <span class="faq-answer">Your data is automatically deleted after 1 year of inactivity on your account.</span>
+          </li>
+          <li class="faq-row" nav-selectable="true">
+            <span class="faq-question">What other data do you collect?</span>
+            <span class="faq-answer">We store the IP address each request came from, a random device identifier, and some technical headers provided by AWS. This is standard for any online service and is used only for security and troubleshooting.</span>
+          </li>
+          <li class="faq-row" nav-selectable="true">
+            <span class="faq-question">Do you sell my data?</span>
+            <span class="faq-answer">No. We do not sell your data, and we never will. This is a personal hobby project — if it ever becomes too expensive to run, we will simply shut it down rather than sell your information.</span>
+          </li>
+          <li class="faq-row" nav-selectable="true">
+            <span class="faq-question">What if the person I'm sharing with has a different kind of phone?</span>
+            <span class="faq-answer">No problem! The shared list link opens in any web browser, so your friend can use it on an iPhone, Android, or computer — they don't need a KaiOS device.</span>
+          </li>
+          <li class="faq-row" nav-selectable="true">
+            <span class="faq-question">Who can see my lists?</span>
+            <span class="faq-answer">Only you and anyone you choose to share the link with. The developers cannot read your list contents — all data is encrypted in the database.</span>
           </li>
         </ul>
       </div>
@@ -169,7 +217,7 @@
     </div>
 
   </div>
-  <script type="text/javascript" src="kaiads.v5.min.js?v=3.0.2"></script>
-  <script src="app.js?v=3.0.2"></script>
+  <script type="text/javascript" src="kaiads.v5.min.js?v=3.0.3"></script>
+  <script src="app.js?v=3.0.3"></script>
 </body>
 </html>

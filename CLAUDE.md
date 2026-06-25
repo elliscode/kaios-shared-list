@@ -79,11 +79,47 @@ The `min-width: 241px` media query switches to the **fixed-height panel system**
 
 Do not apply `overflow: hidden` or fixed heights to `html`/`body` in the base (KaiOS) styles.
 
+### D-pad navigation
+
+Elements marked `nav-selectable="true"` are included in D-pad focus cycling. Key rules:
+
+- `setFocus(el)` in `app.js` lazily adds `tabindex="0"` to non-natively-focusable elements (e.g. `<li>`) before calling `.focus()`. Do not skip this — without it, KaiOS's Enter key may not fire on the right element.
+- `scrollToVisible(el)` detects which mode it's in: if `.panel-content` has `overflow-y: visible` (KaiOS doc flow), it uses `window.scrollBy()`; otherwise it scrolls the container. When the first nav-selectable or the ad is focused, it snaps to `window.scrollTo(0, 0)` to keep the panel header visible.
+- `showPanel()` calls `window.scrollTo(0, 0)` to reset page position on every panel switch.
+- Backspace (hardware back button) only calls `handleSoftLeft()` on non-root panels. On `panel-lists` and `panel-email` it does NOT `preventDefault`, letting KaiOS exit the app.
+
+### KaiOS ads
+
+- Ads only load when `window.location.hostname.endsWith('.localhost')` (the packaged app origin). Do not use `window.location.protocol === 'app:'` — that's the old KaiOS 2.x format.
+- `preloadAd()` fetches an ad and stores it in `_preloadedAd`. `displayAd()` consumes the preload (or falls back to immediate load), then calls `preloadAd()` to queue the next one.
+- `displayAd()` is gated by `_lastAdTime`: it no-ops if fewer than 5 minutes have elapsed since the last display. This prevents excessive ad requests when navigating back to the main menu repeatedly.
+- Call `preloadAd()` on `DOMContentLoaded` so the ad is ready by the time the user logs in and reaches the lists panel.
+- The KaiOS developer portal app name (`app:` field in `getKaiAd`) is `kaiosshaaredlist` (note the double-a — this is the registered name).
+
+### Version bumping
+
+The version string (e.g. `3.0.3`) appears in:
+- CSS `<link>` cache-busters in `index.html`
+- `<script>` cache-busters in `index.html`
+- The Version row in the Options panel (`index.html`)
+- `manifest.webmanifest` `b2g_features.version`
+
+Use ⌘⇧H (find & replace all) to bump all occurrences at once.
+
 ## Auth flow
 
 1. `POST /otp` — client submits email, server sends a 6-digit OTP via SES
 2. `POST /login` — client submits email + OTP, server returns session cookie + `x-csrf-token` header
 3. Authenticated routes — require session cookie + `csrf` field in request body
+
+### CORS allowed origins
+
+The Lambda function reads allowed origins from the `DOMAIN_NAMES` environment variable (comma-separated). This must include every origin that will make requests:
+
+- `https://lists.elliscode.com` — web app
+- `http://sharedlists.localhost` — KaiOS packaged app (derived from manifest `"id": "shared-lists"`)
+
+If a new deployment target is added, update `DOMAIN_NAMES` in the Lambda config in AWS Console.
 
 ## DynamoDB key patterns
 

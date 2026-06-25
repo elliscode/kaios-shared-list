@@ -376,6 +376,8 @@ function handleSoftLeft() {
     showListsPanel();
   } else if (panel.id === 'panel-options') {
     showListsPanel();
+  } else if (panel.id === 'panel-faq') {
+    showOptionsPanel();
   }
 }
 
@@ -481,6 +483,11 @@ function showListsPanel() {
   loadLists();
   if (window.location.hostname.endsWith('.localhost')) displayAd();
   if (pendingShare) acceptShare();
+}
+
+function showFaqPanel() {
+  showPanel('panel-faq');
+  setSoftkeys('Back', '', '');
 }
 
 function showOptionsPanel() {
@@ -1036,6 +1043,8 @@ document.querySelectorAll('.options-row').forEach(function (row) {
   row.addEventListener('click', function () { cycleOption(row); });
 });
 
+document.getElementById('opt-faq').addEventListener('click', showFaqPanel);
+document.getElementById('btn-faq-back').addEventListener('click', showOptionsPanel);
 document.getElementById('opt-log-out').addEventListener('click', logOut);
 document.getElementById('opt-log-out-all').addEventListener('click', logOutAll);
 
@@ -1050,8 +1059,8 @@ document.getElementById('btn-new-item-add').addEventListener('click', submitNewI
 document.getElementById('btn-list-back').addEventListener('click', handleSoftLeft);
 // ─── KaiOS Ads ────────────────────────────────────────────────────────────────
 
-var _adInterval = null;
 var _preloadedAd = null;
+var _lastAdTime = 0;
 
 function preloadAd() {
   getKaiAd({
@@ -1067,6 +1076,9 @@ function preloadAd() {
 }
 
 function displayAd() {
+  var now = Date.now();
+  if (now - _lastAdTime < 5 * 60 * 1000) return;
+
   var old = document.querySelectorAll('.nav-selectable-ad');
   for (var i = 0; i < old.length; i++) old[i].remove();
 
@@ -1074,6 +1086,7 @@ function displayAd() {
     var ad = _preloadedAd;
     _preloadedAd = null;
     ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
+    _lastAdTime = Date.now();
   } else {
     getKaiAd({
       publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
@@ -1085,6 +1098,7 @@ function displayAd() {
       onerror: function (err) { console.log('Ad error', err); },
       onready: function (ad) {
         ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
+        _lastAdTime = Date.now();
       }
     });
   }
@@ -1092,10 +1106,7 @@ function displayAd() {
 }
 
 if (window.location.hostname.endsWith('.localhost')) {
-  document.addEventListener('DOMContentLoaded', function () {
-    preloadAd();
-    _adInterval = setInterval(displayAd, 300 * 1000);
-  });
+  document.addEventListener('DOMContentLoaded', preloadAd);
 }
 
 document.getElementById('btn-list-add').addEventListener('click', showNewItemPanel);
