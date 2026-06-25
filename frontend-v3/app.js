@@ -196,6 +196,11 @@ function scrollToVisible(el) {
     else if (elRect.top < cRect.top)
       container.scrollTop -= cRect.top - elRect.top;
   } else {
+    var firstNavEl = document.querySelector('.panel[active="true"] [nav-selectable="true"]');
+    if (el.classList.contains('nav-selectable-ad') || el === firstNavEl) {
+      window.scrollTo(0, 0);
+      return;
+    }
     if (elRect.bottom + SOFTKEY_H > window.innerHeight)
       window.scrollBy(0, elRect.bottom + SOFTKEY_H - window.innerHeight);
     else if (elRect.top < 0)
@@ -333,8 +338,12 @@ document.addEventListener('keydown', function (e) {
       break;
     case 'Backspace':
       if (!isTextInput(document.activeElement)) {
-        e.preventDefault();
-        handleSoftLeft();
+        var bp = activePanel();
+        if (bp && bp.id !== 'panel-lists' && bp.id !== 'panel-email') {
+          e.preventDefault();
+          handleSoftLeft();
+        }
+        // else: no preventDefault — OS handles back gesture to exit app
       }
       break;
   }
@@ -470,6 +479,7 @@ function showListsPanel() {
   setSoftkeys('', 'OPEN', 'Options');
   renderLists();
   loadLists();
+  if (window.location.hostname.endsWith('.localhost')) displayAd();
   if (pendingShare) acceptShare();
 }
 
@@ -1041,11 +1051,9 @@ document.getElementById('btn-list-back').addEventListener('click', handleSoftLef
 // ─── KaiOS Ads ────────────────────────────────────────────────────────────────
 
 var _adInterval = null;
+var _preloadedAd = null;
 
-function displayAd() {
-  var old = document.querySelectorAll('.nav-selectable-ad');
-  for (var i = 0; i < old.length; i++) old[i].remove();
-
+function preloadAd() {
   getKaiAd({
     publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
     app: 'kaiosshaaredlist',
@@ -1054,15 +1062,38 @@ function displayAd() {
     w: 240,
     container: document.getElementById('ad-container'),
     onerror: function (err) { console.log('Ad error', err); },
-    onready: function (ad) {
-      ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
-    }
+    onready: function (ad) { _preloadedAd = ad; }
   });
+}
+
+function displayAd() {
+  var old = document.querySelectorAll('.nav-selectable-ad');
+  for (var i = 0; i < old.length; i++) old[i].remove();
+
+  if (_preloadedAd) {
+    var ad = _preloadedAd;
+    _preloadedAd = null;
+    ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
+  } else {
+    getKaiAd({
+      publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
+      app: 'kaiosshaaredlist',
+      slot: 'topbarad',
+      h: 60,
+      w: 240,
+      container: document.getElementById('ad-container'),
+      onerror: function (err) { console.log('Ad error', err); },
+      onready: function (ad) {
+        ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
+      }
+    });
+  }
+  preloadAd();
 }
 
 if (window.location.hostname.endsWith('.localhost')) {
   document.addEventListener('DOMContentLoaded', function () {
-    displayAd();
+    preloadAd();
     _adInterval = setInterval(displayAd, 300 * 1000);
   });
 }
