@@ -292,10 +292,10 @@ body.dark .input-wrap label {
   max-height: 60px;
   min-height: 60px;
   overflow: hidden;
+  border: 3px solid transparent;
 }
 
 .nav-selectable-ad:focus {
-  outline: 3px solid #6a0080;
-  outline-offset: 2px;
-  box-shadow: 0 0 0 5px rgba(106, 0, 128, 0.25);
+  outline: none;
+  border-color: #9b27af;
 }

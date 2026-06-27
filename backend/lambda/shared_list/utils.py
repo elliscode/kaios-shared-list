@@ -204,7 +204,7 @@ def authenticate(func):
 
     return wrapper_func
 
-def send_email(to_address, otp_code, expiration_time):
+def send_email(to_address, otp_code, expiration_time, user_id):
 
     # Send templated email
     response = ses.send_templated_email(
@@ -216,6 +216,7 @@ def send_email(to_address, otp_code, expiration_time):
         TemplateData=json.dumps({
             "code": str(otp_code),
             "minutes": str(expiration_time),
+            "user_id": str(user_id),
         }),
         # Optional: reply-to
         ReplyToAddresses=[SES_REPLY_TO_EMAIL]
@@ -416,7 +417,7 @@ def otp_route(event):
     if otp_data is None or otp_data["expiration"] < int(time.time()):
         otp_value = "".join(secrets.choice(digits) for i in range(6))
         otp_data = create_otp(user_id, otp_value, OTP_TIMEOUT)
-        send_email(email, otp_value, OTP_TIMEOUT)
+        send_email(email, otp_value, OTP_TIMEOUT, user_id)
         body_value = {"email": email}
 
     return format_response(event=event, http_code=200, body=body_value)

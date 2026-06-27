@@ -373,7 +373,7 @@ function handleSoftLeft() {
   } else if (panel.id === 'panel-new-item') {
     showListPanel(state.currentListName);
   } else if (panel.id === 'panel-list') {
-    showListsPanel();
+    showListsPanel(state.currentListName);
   } else if (panel.id === 'panel-options') {
     showListsPanel();
   } else if (panel.id === 'panel-faq') {
@@ -472,14 +472,14 @@ document.getElementById('input-otp').addEventListener('keydown', function (e) {
 
 // ─── Screen: Lists ────────────────────────────────────────────────────────────
 
-function showListsPanel() {
+function showListsPanel(focusName) {
   document.body.classList.add('authenticated');
   Object.keys(state.listCache).forEach(function (name) {
     state.allLists[name] = state.listCache[name].list_id;
   });
   showPanel('panel-lists');
   setSoftkeys('', 'OPEN', 'Options');
-  renderLists();
+  renderLists(focusName);
   loadLists();
   if (window.location.hostname.endsWith('.localhost')) displayAd();
   if (pendingShare) acceptShare();
@@ -693,7 +693,7 @@ function loadLists() {
   });
 }
 
-function renderLists() {
+function renderLists(focusName) {
   var ul = document.getElementById('lists-ul');
   var empty = document.getElementById('lists-empty');
   ul.innerHTML = '';
@@ -743,8 +743,9 @@ function renderLists() {
   newLi.addEventListener('click', showNewListPanel);
   ul.appendChild(newLi);
 
-  var first = ul.querySelector('[nav-selectable="true"]');
-  if (first) setFocus(first);
+  var target = focusName ? ul.querySelector('[data-list-name="' + focusName + '"]') : null;
+  if (!target) target = ul.querySelector('[nav-selectable="true"]');
+  if (target) setFocus(target);
 }
 
 function openList(name) {
@@ -781,34 +782,44 @@ function showListPanel(name) {
   document.getElementById('list-title').textContent = name;
   showPanel('panel-list');
   setSoftkeys('Back', 'CHECK', 'Add');
-  renderListItems();
+  document.getElementById('list-ul').innerHTML = '';
+  softRenderListItems();
 }
 
 function softRenderListItems(focusKey) {
   var cur = focused();
-  var targetKey = focusKey || (cur ? cur.getAttribute('data-item-key') : null);
-  var sweepFocused = cur ? cur.classList.contains('sweep-row') : false;
-  var deleteFocused = cur ? cur.classList.contains('delete-list-row') : false;
-  var container = document.querySelector('#panel-list .panel-content');
-  var savedScrollTop = container ? container.scrollTop : 0;
+  var prevKey = cur ? cur.getAttribute('data-item-key') : null;
+  var prevSweep = cur ? cur.classList.contains('sweep-row') : false;
+  var prevDelete = cur ? cur.classList.contains('delete-list-row') : false;
+  var hadFocus = !!cur;
+
   renderListItems();
-  if (container) container.scrollTop = savedScrollTop;
-  if (targetKey) {
-    var el = document.querySelector('[data-item-key="' + targetKey + '"]');
-    if (el) setFocus(el);
-  } else if (sweepFocused) {
-    var sweep = document.querySelector('.sweep-row');
-    if (sweep) setFocus(sweep);
-  } else if (deleteFocused) {
-    var del = document.querySelector('.delete-list-row');
-    if (del) setFocus(del);
+
+  if (!hadFocus) {
+    var first = document.querySelector('#list-ul [nav-selectable="true"]');
+    if (first) setFocus(first);
+    return;
   }
+
+  // If the element that was focused before re-rendering still exists, leave
+  // focus and scroll position completely untouched — no setFocus call means
+  // no scrollToVisible call. Only when it's actually gone do we need to pick
+  // a new focus target (which legitimately may require scrolling).
+  var stillThere =
+    (prevKey && document.querySelector('[data-item-key="' + prevKey + '"]')) ||
+    (prevSweep && document.querySelector('.sweep-row')) ||
+    (prevDelete && document.querySelector('.delete-list-row'));
+
+  if (stillThere) return;
+
+  var el = focusKey ? document.querySelector('[data-item-key="' + focusKey + '"]') : null;
+  if (!el) el = document.querySelector('#list-ul [nav-selectable="true"]');
+  if (el) setFocus(el);
 }
 
 function renderListItems() {
   var ul = document.getElementById('list-ul');
   var empty = document.getElementById('list-empty');
-  ul.innerHTML = '';
 
   var items = Object.keys(state.currentList)
     .filter(function (key) { return !state.currentList[key].deleted; })
@@ -820,42 +831,64 @@ function renderListItems() {
 
   empty.style.display = 'none';
 
+  var existingEls = {};
+  Array.prototype.slice.call(ul.querySelectorAll('[data-item-key]')).forEach(function (li) {
+    existingEls[li.getAttribute('data-item-key')] = li;
+  });
+
+  var emptyLi = ul.querySelector('.list-row-empty');
+
   if (!items.length) {
-    var emptyLi = document.createElement('li');
-    emptyLi.className = 'list-row-empty';
-    emptyLi.textContent = 'Nothing here.';
-    ul.appendChild(emptyLi);
+    Object.keys(existingEls).forEach(function (key) { existingEls[key].remove(); });
+    if (!emptyLi) {
+      emptyLi = document.createElement('li');
+      emptyLi.className = 'list-row-empty';
+      emptyLi.textContent = 'Nothing here.';
+      ul.insertBefore(emptyLi, ul.firstChild);
+    }
   } else {
+    if (emptyLi) emptyLi.remove();
+    var seenKeys = {};
+    var refNode = ul.firstChild;
     items.forEach(function (pair) {
       var key = pair[0], item = pair[1];
-      var li = document.createElement('li');
+      seenKeys[key] = true;
+      var li = existingEls[key];
+      if (!li) {
+        li = document.createElement('li');
+        li.setAttribute('nav-selectable', 'true');
+        li.setAttribute('data-item-key', key);
+        li.addEventListener('click', function () {
+          toggleItem(key);
+        });
+      }
       li.className = 'list-row' + (item.crossed ? ' crossed' : '');
-      li.setAttribute('nav-selectable', 'true');
-      li.setAttribute('data-item-key', key);
       li.textContent = item.display;
-      li.addEventListener('click', function () {
-        toggleItem(key);
-      });
-      ul.appendChild(li);
+      if (li !== refNode) ul.insertBefore(li, refNode);
+      refNode = li.nextSibling;
+    });
+    Object.keys(existingEls).forEach(function (key) {
+      if (!seenKeys[key]) existingEls[key].remove();
     });
   }
 
-  var sweep = document.createElement('li');
-  sweep.className = 'list-row sweep-row';
-  sweep.setAttribute('nav-selectable', 'true');
-  sweep.textContent = 'Clear Crossed Items';
-  sweep.addEventListener('click', doSweep);
-  ul.appendChild(sweep);
+  if (!ul.querySelector('.sweep-row')) {
+    var sweep = document.createElement('li');
+    sweep.className = 'list-row sweep-row';
+    sweep.setAttribute('nav-selectable', 'true');
+    sweep.textContent = 'Clear Crossed Items';
+    sweep.addEventListener('click', doSweep);
+    ul.appendChild(sweep);
+  }
 
-  var deleteRow = document.createElement('li');
-  deleteRow.className = 'list-row delete-list-row';
-  deleteRow.setAttribute('nav-selectable', 'true');
-  deleteRow.textContent = 'Delete List';
-  deleteRow.addEventListener('click', confirmDeleteList);
-  ul.appendChild(deleteRow);
-
-  var first = ul.querySelector('[nav-selectable="true"]');
-  if (first) setFocus(first);
+  if (!ul.querySelector('.delete-list-row')) {
+    var deleteRow = document.createElement('li');
+    deleteRow.className = 'list-row delete-list-row';
+    deleteRow.setAttribute('nav-selectable', 'true');
+    deleteRow.textContent = 'Delete List';
+    deleteRow.addEventListener('click', confirmDeleteList);
+    ul.appendChild(deleteRow);
+  }
 }
 
 function toggleItem(key) {
@@ -1061,8 +1094,11 @@ document.getElementById('btn-list-back').addEventListener('click', handleSoftLef
 
 var _preloadedAd = null;
 var _lastAdTime = 0;
+var _adRequestPending = false;
 
 function preloadAd() {
+  if (_adRequestPending) return;
+  _adRequestPending = true;
   getKaiAd({
     publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
     app: 'kaiosshaaredlist',
@@ -1070,8 +1106,8 @@ function preloadAd() {
     h: 60,
     w: 240,
     container: document.getElementById('ad-container'),
-    onerror: function (err) { console.log('Ad error', err); },
-    onready: function (ad) { _preloadedAd = ad; }
+    onerror: function (err) { console.log('Ad error', err); _adRequestPending = false; },
+    onready: function (ad) { _adRequestPending = false; _preloadedAd = ad; }
   });
 }
 
@@ -1079,30 +1115,33 @@ function displayAd() {
   var now = Date.now();
   if (now - _lastAdTime < 5 * 60 * 1000) return;
 
-  var old = document.querySelectorAll('.nav-selectable-ad');
-  for (var i = 0; i < old.length; i++) old[i].remove();
+  var container = document.getElementById('ad-container');
+  container.innerHTML = '';
 
   if (_preloadedAd) {
     var ad = _preloadedAd;
     _preloadedAd = null;
-    ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
     _lastAdTime = Date.now();
-  } else {
+    ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
+    preloadAd();
+  } else if (!_adRequestPending) {
+    _lastAdTime = Date.now();
+    _adRequestPending = true;
     getKaiAd({
       publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
       app: 'kaiosshaaredlist',
       slot: 'topbarad',
       h: 60,
       w: 240,
-      container: document.getElementById('ad-container'),
-      onerror: function (err) { console.log('Ad error', err); },
+      container: container,
+      onerror: function (err) { console.log('Ad error', err); _adRequestPending = false; },
       onready: function (ad) {
+        _adRequestPending = false;
         ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
-        _lastAdTime = Date.now();
+        preloadAd();
       }
     });
   }
-  preloadAd();
 }
 
 if (window.location.hostname.endsWith('.localhost')) {

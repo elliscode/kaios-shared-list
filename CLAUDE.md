@@ -98,7 +98,7 @@ Elements marked `nav-selectable="true"` are included in D-pad focus cycling. Key
 
 ### Version bumping
 
-The version string (e.g. `3.0.3`) appears in:
+The version string (e.g. `3.0.4`) appears in:
 - CSS `<link>` cache-busters in `index.html`
 - `<script>` cache-busters in `index.html`
 - The Version row in the Options panel (`index.html`)
