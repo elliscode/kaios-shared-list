@@ -1094,11 +1094,11 @@ document.getElementById('btn-list-back').addEventListener('click', handleSoftLef
 
 var _preloadedAd = null;
 var _lastAdTime = 0;
-var _adRequestPending = false;
+var _preloadPending = false;
 
 function preloadAd() {
-  if (_adRequestPending) return;
-  _adRequestPending = true;
+  if (_preloadPending) return;
+  _preloadPending = true;
   getKaiAd({
     publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
     app: 'kaiosshaaredlist',
@@ -1106,14 +1106,15 @@ function preloadAd() {
     h: 60,
     w: 240,
     container: document.getElementById('ad-container'),
-    onerror: function (err) { console.log('Ad error', err); _adRequestPending = false; },
-    onready: function (ad) { _adRequestPending = false; _preloadedAd = ad; }
+    onerror: function (err) { console.log('Ad error', err); _preloadPending = false; },
+    onready: function (ad) { _preloadPending = false; _preloadedAd = ad; }
   });
 }
 
 function displayAd() {
   var now = Date.now();
   if (now - _lastAdTime < 5 * 60 * 1000) return;
+  _lastAdTime = Date.now();
 
   var container = document.getElementById('ad-container');
   container.innerHTML = '';
@@ -1121,12 +1122,9 @@ function displayAd() {
   if (_preloadedAd) {
     var ad = _preloadedAd;
     _preloadedAd = null;
-    _lastAdTime = Date.now();
     ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
     preloadAd();
-  } else if (!_adRequestPending) {
-    _lastAdTime = Date.now();
-    _adRequestPending = true;
+  } else {
     getKaiAd({
       publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
       app: 'kaiosshaaredlist',
@@ -1134,9 +1132,8 @@ function displayAd() {
       h: 60,
       w: 240,
       container: container,
-      onerror: function (err) { console.log('Ad error', err); _adRequestPending = false; },
+      onerror: function (err) { console.log('Ad error', err); },
       onready: function (ad) {
-        _adRequestPending = false;
         ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
         preloadAd();
       }

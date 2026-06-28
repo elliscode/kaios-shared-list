@@ -22,7 +22,7 @@
     "subtitle": "Share lists with others",
     "type": "web",
     "permissions": {},
-    "version": "3.0.4",
+    "version": "3.0.6",
     "developer": {
         "name": "elliscode",
         "url": "http://www.elliscode.com"
@@ -32,6 +32,7 @@
 		},
     "deeplinks": {
       "regex": "^https://lists\\.elliscode\\.com/\\?share=",
+      "paths": ["https://lists.elliscode.com/?share="],
       "action": "open-share"
     },
     "activities": {
