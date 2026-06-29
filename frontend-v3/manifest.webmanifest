@@ -22,27 +22,13 @@
     "subtitle": "Share lists with others",
     "type": "web",
     "permissions": {},
-    "version": "3.0.8",
+    "version": "3.0.14",
     "developer": {
         "name": "elliscode",
         "url": "http://www.elliscode.com"
     },
 		"dependencies": {
 			"ads-sdk": "1.5.8"
-		},
-    "activities": {
-      "open-share": {
-        "href": "./index.html",
-        "disposition": "window",
-        "filters": {
-          "type": "url",
-          "url": {
-            "required": true,
-            "pattern": "https://lists\\.elliscode\\.com/\\?share=.{1,100}"
-          }
-        },
-        "returnValue": false
-      }
-    }
+		}
   }
 }

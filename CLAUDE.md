@@ -98,18 +98,22 @@ Elements marked `nav-selectable="true"` are included in D-pad focus cycling. Key
 
 ### Sharing & app handoff
 
-Native deep linking (`b2g_features.deeplinks` regex/paths matching) was tried and removed — it depends on which `AppsServiceDelegate` implementation (`.jsm` vs `.sys.mjs`) a given firmware build ships, so a share link tapped in SMS/Email would inconsistently open the system browser instead of the app. Replaced with an explicit handoff:
+Two things were tried and abandoned before landing on the current approach:
+- **Native deep linking** (`b2g_features.deeplinks` regex/paths matching) — depends on which `AppsServiceDelegate` implementation (`.jsm` vs `.sys.mjs`) a given firmware build ships, so a share link tapped in SMS/Email would inconsistently open the system browser instead of the app.
+- **`WebActivity('open-share', ...)`** invoked from the plain web page, intended to make the OS launch the installed app directly — failed on-device with a native "can't open list" error (not a message this app produces). Most likely `NO_PROVIDER`: unprivileged websites can probably only invoke built-in activity names (`view`, `share`, `pick`, etc.), not a custom one like `"open-share"`.
 
-- When the web app (`lists.elliscode.com`) loads with a `?share=` param, on a KaiOS browser (sniffed via `navigator.userAgent` containing `"kaios"`) it reveals `#open-in-app-banner` ("Open in the KaiOS app").
-- Tapping it fires `new WebActivity('open-share', { type: 'url', url: ... }).start()` — a real OS-level request to launch the installed app's own window, not just a navigation. Falls back to a plain `http://sharedlists.localhost/...` link if `WebActivity` is unavailable or the call rejects.
-- The manifest's `b2g_features.activities.open-share` block (href/disposition/filters) is what registers the app as a valid handler for that activity name — this is reused from the old deep-link setup but serves a different purpose now.
-- The receiving side already existed and needs no further wiring: `navigator.mozSetMessageHandler('activity', ...)` near the top of `app.js` extracts `?share=` from the incoming activity's `data.url`.
-- **Deliberately KaiOS 3.0+ only.** `WebActivity` is the 3.0 API; the older `MozActivity` (2.5) is intentionally not supported — 2.5's userbase (mostly India) isn't a target market for this app, whereas 3.0+ (US/Canada) is.
-- Plain web/desktop/iOS/Android visitors never see the banner — `http://sharedlists.localhost` isn't reachable outside an actual KaiOS device, so it would be a dead end for them.
+**Current approach — a two-screen tap-to-join flow, fullscreen, specifically for shares opened in a KaiOS browser:**
+
+- Cookies/session ARE shared between the system browser's rendering of the web app and the real installed app — there's no storage isolation issue, and `POST /share` is a server-side, account-level operation anyway. The actual reason not to just let the user browse the full app inside the system browser is navigational: the Browser app doesn't pass real D-pad/keyboard events to arbitrary pages, it falls back to an on-screen mouse-cursor mode, which doesn't work well with this app's `nav-selectable`/`setFocus` keyboard-driven UI.
+- So instead of trying to "launch" anything, when the web app loads with a `?share=` param on a KaiOS browser (sniffed via `navigator.userAgent` containing `"kaios"`), `isKaiosShareHandoff` gates a deliberately minimal flow:
+  1. `#open-in-app-banner` shows fullscreen ("Click to add list →") — a single big tap target, no autofocus, nothing else rendered (the normal bootstrap is deferred until tapped).
+  2. Tapping it starts the *normal* existing bootstrap (login/OTP if needed, then `acceptShare()`) — those screens render as the regular app UI, that part is unchanged.
+  3. On successful join, `acceptShare()` checks `isKaiosShareHandoff` and shows the banner fullscreen again with a success message ("Added... to your lists. Please re-open the app.") instead of the normal `openList(name)` — telling the user to switch to the real app, where proper D-pad nav resumes, rather than continuing in the browser.
+- Plain web/desktop/iOS/Android visitors never see any of this — the UA check excludes them entirely, they just get the normal app/site.
 
 ### Version bumping
 
-The version string (e.g. `3.0.8`) appears in:
+The version string (e.g. `3.0.14`) appears in:
 - CSS `<link>` cache-busters in `index.html`
 - `<script>` cache-busters in `index.html`
 - The Version row in the Options panel (`index.html`)
@@ -153,4 +157,4 @@ No known issues at this time
 
 ### Testing steps
 
-1: Enter an email address to receive a one-time login pin. 2: Create a list. 3: Add items to your list, cross some off, delete some. 4: Open the app on another device, enter a different email address to receive a one-time login pin. 5: On the first device, share the link to the second device using SMS or email. 6: Click the link shared on the second device — it opens in the regular browser, which shows an "Open in the KaiOS app" banner (see Sharing & app handoff). Tapping it should launch the installed app directly via a Web Activity; if that fails it falls back to a plain link. Either way, the list should get added to the second user's lists menu. 7: Modify the list on either device, then go back to the main menu and re-enter the list to see the shared list update from the other account / device.
+1: Enter an email address to receive a one-time login pin. 2: Create a list. 3: Add items to your list, cross some off, delete some. 4: Open the app on another device, enter a different email address to receive a one-time login pin. 5: On the first device, share the link to the second device using SMS or email. 6: Click the link shared on the second device — it opens in the regular browser, showing a fullscreen "Click to add list" prompt (see Sharing & app handoff). Tap it, log in if needed, and confirm the success screen tells you to re-open the app — then re-open the real app and confirm the list now appears in its lists menu. 7: Modify the list on either device, then go back to the main menu and re-enter the list to see the shared list update from the other account / device.

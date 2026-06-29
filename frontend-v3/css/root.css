@@ -23,11 +23,20 @@ html, body {
 }
 
 .open-in-app-banner {
-  flex-shrink: 0;
-  display: block;
+  display: none;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 50;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 6px 8px;
-  font-size: 12px;
+  padding: 24px;
+  font-size: 16px;
   font-weight: 600;
   background: #9b27af;
   color: #fff;

@@ -26,6 +26,7 @@ var state = {
 };
 
 var pendingShare = null;
+var isKaiosShareHandoff = false;
 
 if (navigator.mozSetMessageHandler) {
   navigator.mozSetMessageHandler('activity', function (activity) {
@@ -595,7 +596,14 @@ function acceptShare() {
         state.allLists[name] = data.list_id;
         state.listCache[name] = { name: name, list_id: data.list_id, list: data.list || {} };
         dbSaveList(name, data.list_id, data.list || {});
-        openList(name);
+        if (isKaiosShareHandoff) {
+          var banner = document.getElementById('open-in-app-banner');
+          banner.removeAttribute('href');
+          banner.textContent = 'Success! Joined the list "' + name + '". Please open the app.';
+          banner.style.display = 'flex';
+        } else {
+          openList(name);
+        }
       } else if (res.status === 404) {
         showStatus('Share link not found', true);
       } else {
@@ -648,6 +656,27 @@ document.getElementById('input-list-name').addEventListener('keydown', function 
   if (e.key === 'Enter') {
     e.preventDefault();
     submitNewList();
+  }
+});
+
+function refreshListsFromLocalCache() {
+  dbLoadAll(function (cache) {
+    state.listCache = cache;
+    state.allLists = {};
+    Object.keys(cache).forEach(function (name) {
+      state.allLists[name] = cache[name].list_id;
+    });
+    if (activePanel() && activePanel().id === 'panel-lists') {
+      var cur = focused();
+      var focusedName = cur ? cur.getAttribute('data-list-name') : null;
+      renderLists(focusedName);
+    }
+  });
+}
+
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && state.csrf) {
+    refreshListsFromLocalCache();
   }
 });
 
@@ -1158,33 +1187,31 @@ openDB(function () {
   var shareIdFromUrl = _shareMatch ? decodeURIComponent(_shareMatch[1]) : null;
   if (shareIdFromUrl) pendingShare = shareIdFromUrl;
 
-  if (shareIdFromUrl &&
+  isKaiosShareHandoff = /[?&]handoff=1(&|$)/.test(window.location.search);
+
+  var showShareIntroBanner = shareIdFromUrl &&
+      !isKaiosShareHandoff &&
       !window.location.hostname.endsWith('.localhost') &&
-      /kaios/i.test(navigator.userAgent)) {
-    var banner = document.getElementById('open-in-app-banner');
-    banner.href = 'http://sharedlists.localhost/index.html?share=' + encodeURIComponent(shareIdFromUrl);
-    banner.style.display = 'block';
-    banner.addEventListener('click', function (e) {
-      e.preventDefault();
-      var shareUrl = APP_HOST + '/?share=' + encodeURIComponent(shareIdFromUrl);
-      if (typeof WebActivity === 'function') {
-        new WebActivity('open-share', { type: 'url', url: shareUrl })
-          .start()
-          .catch(function () {
-            window.location.href = banner.href;
-          });
+      /kaios/i.test(navigator.userAgent);
+
+  function startNormalBootstrap() {
+    dbLoadAll(function (cache) {
+      state.listCache = cache;
+      if (state.csrf) {
+        showListsPanel();
       } else {
-        window.location.href = banner.href;
+        showEmailPanel();
       }
     });
   }
 
-  dbLoadAll(function (cache) {
-    state.listCache = cache;
-    if (state.csrf) {
-      showListsPanel();
-    } else {
-      showEmailPanel();
-    }
-  });
+  if (showShareIntroBanner) {
+    var banner = document.getElementById('open-in-app-banner');
+    banner.textContent = 'Click to add list →';
+    banner.href = 'http://sharedlists.localhost/index.html?share=' + encodeURIComponent(shareIdFromUrl) + '&handoff=1';
+    banner.style.display = 'flex';
+    return;
+  }
+
+  startNormalBootstrap();
 });
