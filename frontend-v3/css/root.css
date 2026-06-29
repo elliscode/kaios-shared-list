@@ -22,6 +22,18 @@ html, body {
   flex-direction: column;
 }
 
+.open-in-app-banner {
+  flex-shrink: 0;
+  display: block;
+  text-align: center;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #9b27af;
+  color: #fff;
+  text-decoration: none;
+}
+
 .panel {
   display: none;
   flex-direction: column;
@@ -177,6 +189,7 @@ html, body {
 
   body.authenticated #panel-list[active="false"] #list-title,
   body.authenticated #panel-list[active="false"] #btn-list-back,
+  body.authenticated #panel-list[active="false"] #btn-list-share,
   body.authenticated #panel-list[active="false"] #btn-list-add {
     display: none;
   }

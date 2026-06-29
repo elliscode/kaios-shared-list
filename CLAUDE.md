@@ -96,9 +96,20 @@ Elements marked `nav-selectable="true"` are included in D-pad focus cycling. Key
 - Call `preloadAd()` on `DOMContentLoaded` so the ad is ready by the time the user logs in and reaches the lists panel.
 - The KaiOS developer portal app name (`app:` field in `getKaiAd`) is `kaiosshaaredlist` (note the double-a — this is the registered name).
 
+### Sharing & app handoff
+
+Native deep linking (`b2g_features.deeplinks` regex/paths matching) was tried and removed — it depends on which `AppsServiceDelegate` implementation (`.jsm` vs `.sys.mjs`) a given firmware build ships, so a share link tapped in SMS/Email would inconsistently open the system browser instead of the app. Replaced with an explicit handoff:
+
+- When the web app (`lists.elliscode.com`) loads with a `?share=` param, on a KaiOS browser (sniffed via `navigator.userAgent` containing `"kaios"`) it reveals `#open-in-app-banner` ("Open in the KaiOS app").
+- Tapping it fires `new WebActivity('open-share', { type: 'url', url: ... }).start()` — a real OS-level request to launch the installed app's own window, not just a navigation. Falls back to a plain `http://sharedlists.localhost/...` link if `WebActivity` is unavailable or the call rejects.
+- The manifest's `b2g_features.activities.open-share` block (href/disposition/filters) is what registers the app as a valid handler for that activity name — this is reused from the old deep-link setup but serves a different purpose now.
+- The receiving side already existed and needs no further wiring: `navigator.mozSetMessageHandler('activity', ...)` near the top of `app.js` extracts `?share=` from the incoming activity's `data.url`.
+- **Deliberately KaiOS 3.0+ only.** `WebActivity` is the 3.0 API; the older `MozActivity` (2.5) is intentionally not supported — 2.5's userbase (mostly India) isn't a target market for this app, whereas 3.0+ (US/Canada) is.
+- Plain web/desktop/iOS/Android visitors never see the banner — `http://sharedlists.localhost` isn't reachable outside an actual KaiOS device, so it would be a dead end for them.
+
 ### Version bumping
 
-The version string (e.g. `3.0.6`) appears in:
+The version string (e.g. `3.0.8`) appears in:
 - CSS `<link>` cache-busters in `index.html`
 - `<script>` cache-busters in `index.html`
 - The Version row in the Options panel (`index.html`)
@@ -142,4 +153,4 @@ No known issues at this time
 
 ### Testing steps
 
-1: Enter an email address to receive a one-time login pin. 2: Create a list. 3: Add items to your list, cross some off, delete some. 4: Open the app on another device, enter a different email address to receive a one-time login pin. 5: On the first device, share the link to the second device using SMS or email. 6: Click the link shared on the second device (this is a test for deep-link compatibility, added this in the manifest), which should open the Shared Lists app and add the list to the second users lists menu. 7: Modify the list on either device, then go back to the main menu and re-enter the list to see the shared list update from the other account / device.
+1: Enter an email address to receive a one-time login pin. 2: Create a list. 3: Add items to your list, cross some off, delete some. 4: Open the app on another device, enter a different email address to receive a one-time login pin. 5: On the first device, share the link to the second device using SMS or email. 6: Click the link shared on the second device — it opens in the regular browser, which shows an "Open in the KaiOS app" banner (see Sharing & app handoff). Tapping it should launch the installed app directly via a Web Activity; if that fails it falls back to a plain link. Either way, the list should get added to the second user's lists menu. 7: Modify the list on either device, then go back to the main menu and re-enter the list to see the shared list update from the other account / device.

@@ -68,26 +68,6 @@ body.dark .row-share-btn {
   background: rgba(155, 39, 175, 0.1);
 }
 
-@media (min-width: 241px) {
-  .row-share-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
-
-@media (min-width: 768px) and (hover: hover) {
-  .row-share-btn {
-    opacity: 0;
-    transition: opacity 0.15s ease;
-  }
-
-  .list-row:hover .row-share-btn,
-  body.using-keyboard .list-row[nav-selected="true"] .row-share-btn {
-    opacity: 1;
-  }
-}
-
 .list-row[nav-selected="true"] {
   background: #9b27af;
   color: #fff;

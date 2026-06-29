@@ -48,3 +48,13 @@
 .header-action-btn:active {
   background: rgba(255, 255, 255, 0.25);
 }
+
+.header-action-btn.icon-share::before {
+  content: '';
+  display: block;
+  width: 18px;
+  height: 18px;
+  background-color: currentColor;
+  -webkit-mask: url('../assets/share.svg') no-repeat center / contain;
+  mask: url('../assets/share.svg') no-repeat center / contain;
+}

@@ -1146,13 +1146,39 @@ if (window.location.hostname.endsWith('.localhost')) {
 }
 
 document.getElementById('btn-list-add').addEventListener('click', showNewItemPanel);
+document.getElementById('btn-list-share').addEventListener('click', function () {
+  openShareSheet(state.currentListName);
+});
 document.getElementById('btn-options-back').addEventListener('click', handleSoftLeft);
 document.getElementById('sheet-overlay').addEventListener('click', closeSheet);
 
 openDB(function () {
   applySettings();
   var _shareMatch = window.location.search.match(/[?&]share=([^&]+)/);
-  if (_shareMatch) pendingShare = decodeURIComponent(_shareMatch[1]);
+  var shareIdFromUrl = _shareMatch ? decodeURIComponent(_shareMatch[1]) : null;
+  if (shareIdFromUrl) pendingShare = shareIdFromUrl;
+
+  if (shareIdFromUrl &&
+      !window.location.hostname.endsWith('.localhost') &&
+      /kaios/i.test(navigator.userAgent)) {
+    var banner = document.getElementById('open-in-app-banner');
+    banner.href = 'http://sharedlists.localhost/index.html?share=' + encodeURIComponent(shareIdFromUrl);
+    banner.style.display = 'block';
+    banner.addEventListener('click', function (e) {
+      e.preventDefault();
+      var shareUrl = APP_HOST + '/?share=' + encodeURIComponent(shareIdFromUrl);
+      if (typeof WebActivity === 'function') {
+        new WebActivity('open-share', { type: 'url', url: shareUrl })
+          .start()
+          .catch(function () {
+            window.location.href = banner.href;
+          });
+      } else {
+        window.location.href = banner.href;
+      }
+    });
+  }
+
   dbLoadAll(function (cache) {
     state.listCache = cache;
     if (state.csrf) {
