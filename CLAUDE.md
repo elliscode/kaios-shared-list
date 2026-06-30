@@ -87,6 +87,8 @@ Elements marked `nav-selectable="true"` are included in D-pad focus cycling. Key
 - `scrollToVisible(el)` detects which mode it's in: if `.panel-content` has `overflow-y: visible` (KaiOS doc flow), it uses `window.scrollBy()`; otherwise it scrolls the container. When the first nav-selectable or the ad is focused, it snaps to `window.scrollTo(0, 0)` to keep the panel header visible.
 - `showPanel()` calls `window.scrollTo(0, 0)` to reset page position on every panel switch.
 - Backspace (hardware back button) only calls `handleSoftLeft()` on non-root panels. On `panel-lists` and `panel-email` it does NOT `preventDefault`, letting KaiOS exit the app.
+- **Text field cursor navigation:** ArrowDown in a text input jumps to the end of the field if the cursor isn't already there; if it is at the end, it falls through to `moveFocus('down')`. ArrowUp mirrors this for the start. `setSelectionRange` is NOT supported on `type="email"` (throws `InvalidStateError`) — the implementation wraps this in try/catch and falls back to `moveFocus` if the call fails.
+- **Softkey label updates:** `updateListsSoftkey(el)` is called by `setFocus()` after every focus change and dynamically updates the center/left/right softkeys based on which panel is active and which element is focused. It handles `panel-lists`, `panel-list`, and `panel-email` (where it shows "INFO" when the privacy-info button is focused, and "NEXT" otherwise). Add new cases here when new panels need context-sensitive softkey labels.
 
 ### KaiOS ads
 
@@ -107,13 +109,25 @@ Two things were tried and abandoned before landing on the current approach:
 - Cookies/session ARE shared between the system browser's rendering of the web app and the real installed app — there's no storage isolation issue, and `POST /share` is a server-side, account-level operation anyway. The actual reason not to just let the user browse the full app inside the system browser is navigational: the Browser app doesn't pass real D-pad/keyboard events to arbitrary pages, it falls back to an on-screen mouse-cursor mode, which doesn't work well with this app's `nav-selectable`/`setFocus` keyboard-driven UI.
 - So instead of trying to "launch" anything, when the web app loads with a `?share=` param on a KaiOS browser (sniffed via `navigator.userAgent` containing `"kaios"`), `isKaiosShareHandoff` gates a deliberately minimal flow:
   1. `#open-in-app-banner` shows fullscreen ("Click to add list →") — a single big tap target, no autofocus, nothing else rendered (the normal bootstrap is deferred until tapped).
-  2. Tapping it starts the *normal* existing bootstrap (login/OTP if needed, then `acceptShare()`) — those screens render as the regular app UI, that part is unchanged.
-  3. On successful join, `acceptShare()` checks `isKaiosShareHandoff` and shows the banner fullscreen again with a success message ("Added... to your lists. Please re-open the app.") instead of the normal `openList(name)` — telling the user to switch to the real app, where proper D-pad nav resumes, rather than continuing in the browser.
+  2. Tapping it navigates to `http://sharedlists.localhost/index.html?share=<id>&handoff=1`. The `&handoff=1` marker is how the receiving page distinguishes "I arrived here via the browser share flow" from "I was launched normally." Without this marker, there's no way to tell the two apart once at the `.localhost` origin (since both have the same hostname check).
+  3. At the `.localhost` origin, `isKaiosShareHandoff` is set from the presence of `handoff=1` in the URL (not from the hostname check, which would be false). The normal bootstrap runs (login/OTP if needed, then `acceptShare()` automatically via `showListsPanel()`).
+  4. On successful join, `acceptShare()` checks `isKaiosShareHandoff` and shows the banner fullscreen ("Success! Joined the list...") instead of `openList(name)`.
 - Plain web/desktop/iOS/Android visitors never see any of this — the UA check excludes them entirely, they just get the normal app/site.
+
+### Offline-first persistence
+
+**Every mutation to `state.currentList` must call `dbSaveList()` immediately, before `queueSync()`.** The three mutation points are `submitNewItem()`, `toggleItem()`, and `doSweep()` in `app.js`. If `dbSaveList()` is only called inside `syncList()`'s `.then()` handler (i.e., after a successful network response), offline changes are lost when the app is closed before the debounce timer fires.
+
+The recovery path when coming back online is free: `openList(name)` sends `state.currentList` (loaded from IndexedDB) to `POST /list`, which merges and persists server-side. No explicit retry-on-reconnect logic is needed.
+
+### Network patterns
+
+- **List-switching race condition:** `openList()` uses `_listFetchController` (an `AbortController`) to cancel any previous in-flight `/list` POST when a new list is opened. Each new `openList()` call aborts the previous controller and creates a fresh one. The response callback also guards with `if (requestedName !== state.currentListName) return;` as a second-line stale-response check. The `post()` helper accepts an optional third `signal` argument.
+- **OTP duplicate prevention:** `submitEmail()` uses an `_otpRequestInFlight` boolean flag plus UI disable (`input.disabled = true`, `btn.disabled = true`) during the request. `resetEmailForm()` re-enables both and clears the flag on both success and error paths, so the user can always retry.
 
 ### Version bumping
 
-The version string (e.g. `3.0.14`) appears in:
+The version string (e.g. `3.0.16`) appears in:
 - CSS `<link>` cache-busters in `index.html`
 - `<script>` cache-busters in `index.html`
 - The Version row in the Options panel (`index.html`)
@@ -145,7 +159,7 @@ All items use a composite primary key `(key1, key2)`:
 | `token`        | token_id    | Session token                    |
 | `active_tokens`| user_id     | Set of active token IDs per user |
 | `user`         | user_id     | User profile                     |
-| `email`        | email       | Email → user_id lookup           |
+| `email`        | HMAC-SHA256 hash of email | Email → user_id lookup (hash only, plaintext never stored) |
 | `otp`          | user_id     | One-time password for login      |
 | `list`         | list_id     | Shared list data                 |
 

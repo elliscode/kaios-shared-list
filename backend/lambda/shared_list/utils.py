@@ -411,14 +411,13 @@ def otp_route(event):
     # generate and set OTP
     otp_data = get_otp(user_id)
     body_value = {
-        "email": email,
-        "status": f"OTP already exists for {email}, please log in",
+        "status": "OTP already exists, please log in",
     }
     if otp_data is None or otp_data["expiration"] < int(time.time()):
         otp_value = "".join(secrets.choice(digits) for i in range(6))
         otp_data = create_otp(user_id, otp_value, OTP_TIMEOUT)
         send_email(email, otp_value, OTP_TIMEOUT, user_id)
-        body_value = {"email": email}
+        body_value = {}
 
     return format_response(event=event, http_code=200, body=body_value)
 

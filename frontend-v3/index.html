@@ -4,14 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Shared List</title>
+
+  <!-- Favicon -->
+  <link rel="icon" href="assets/favicon.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" sizes="180x180">
+
+  <!-- Open Graph — social link previews (iMessage, WhatsApp, Telegram, Slack, Discord, etc.) -->
+  <meta property="og:type"         content="website">
+  <meta property="og:site_name"    content="Shared Lists">
+  <meta property="og:url"          content="https://lists.elliscode.com">
+  <meta property="og:title"        content="Someone is sharing a list with you!">
+  <meta property="og:description"  content="Log into Shared Lists to view the list they shared.">
+  <meta property="og:image"        content="https://lists.elliscode.com/assets/banner_large.png">
+  <meta property="og:image:width"  content="1200">
+  <meta property="og:image:height" content="650">
+  <meta property="og:image:alt"    content="Shared Lists app banner">
+  <meta property="og:locale"       content="en_US">
+
   <!-- Keepin this commented out for now because I only want installs through kaios store -->
   <!-- <link rel="manifest" href="manifest.webmanifest"> -->
-  <link rel="stylesheet" href="css/root.css?v=3.0.14">
-  <link rel="stylesheet" href="css/header.css?v=3.0.14">
-  <link rel="stylesheet" href="css/softkey.css?v=3.0.14">
-  <link rel="stylesheet" href="css/input.css?v=3.0.14">
-  <link rel="stylesheet" href="css/list.css?v=3.0.14">
-  <link rel="stylesheet" href="css/sheet.css?v=3.0.14">
+  <link rel="stylesheet" href="css/root.css?v=3.0.16">
+  <link rel="stylesheet" href="css/header.css?v=3.0.16">
+  <link rel="stylesheet" href="css/softkey.css?v=3.0.16">
+  <link rel="stylesheet" href="css/input.css?v=3.0.16">
+  <link rel="stylesheet" href="css/list.css?v=3.0.16">
+  <link rel="stylesheet" href="css/sheet.css?v=3.0.16">
 </head>
 <body>
   <div id="root">
@@ -25,12 +42,15 @@
         <button id="btn-email-next" class="header-action-btn" title="Next">→</button>
       </div>
       <div class="panel-content">
+        <p class="welcome-heading">Welcome to Shared Lists!</p>
+        <p class="hint" style="text-align:center;margin-bottom:12px;">Create, manage, and share lists with anyone. Works across KaiOS devices, smartphones, and computers.</p>
         <div class="input-wrap">
           <input id="input-email" type="email" placeholder=" "
                  autocomplete="email" nav-selectable="true">
           <label for="input-email">Email address</label>
         </div>
         <p id="email-hint" class="hint">We'll send a one-time code to your email.</p>
+        <button id="btn-email-privacy" class="hint-link" nav-selectable="true">What do we do with your email?</button>
       </div>
     </div>
 
@@ -121,7 +141,7 @@
         <ul class="item-list">
           <li class="options-row" nav-selectable="true" data-setting="none">
             <span class="options-label">Version</span>
-            <span class="options-value">3.0.14</span>
+            <span class="options-value">3.0.16</span>
           </li>
           <li class="options-row" nav-selectable="true" data-setting="none">
             <span class="options-label">User ID</span>
@@ -220,7 +240,7 @@
     </div>
 
   </div>
-  <script type="text/javascript" src="kaiads.v5.min.js?v=3.0.14"></script>
-  <script src="app.js?v=3.0.14"></script>
+  <script type="text/javascript" src="kaiads.v5.min.js?v=3.0.16"></script>
+  <script src="app.js?v=3.0.16"></script>
 </body>
 </html>

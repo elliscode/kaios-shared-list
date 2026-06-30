@@ -30,11 +30,19 @@
 
 #sheet-header {
   display: none;
-  padding: 14px 16px 10px;
+  padding: 10px 12px 8px;
   border-bottom: 1px solid #eee;
 }
 
-/* Header only shown in modal mode (≥241px) */
+#sheet-header[active="true"] {
+  display: block;
+}
+
+@media (min-width: 241px) {
+  #sheet-header {
+    padding: 14px 16px 10px;
+  }
+}
 
 #sheet-title {
   font-size: 15px;
@@ -75,10 +83,6 @@
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  }
-
-  #sheet-header[active="true"] {
-    display: block;
   }
 
   body.dark #sheet {

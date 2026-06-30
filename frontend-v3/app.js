@@ -27,6 +27,8 @@ var state = {
 
 var pendingShare = null;
 var isKaiosShareHandoff = false;
+var _listFetchController = null;
+var _otpRequestInFlight = false;
 
 if (navigator.mozSetMessageHandler) {
   navigator.mozSetMessageHandler('activity', function (activity) {
@@ -86,11 +88,12 @@ function nowSec() {
   return Math.floor(Date.now() / 1000);
 }
 
-function post(path, body) {
+function post(path, body, signal) {
   return fetch(API + path, {
     method: 'POST',
     credentials: 'include',
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: signal || null
   });
 }
 
@@ -183,6 +186,12 @@ function updateListsSoftkey(el) {
       setSoftkeys('Back', 'DELETE', 'Add');
     } else {
       setSoftkeys('Back', 'CHECK', 'Add');
+    }
+  } else if (panel.id === 'panel-email') {
+    if (el.id === 'btn-email-privacy') {
+      setSoftkeys('', 'INFO', '');
+    } else {
+      setSoftkeys('', 'NEXT', '');
     }
   }
 }
@@ -308,11 +317,34 @@ document.addEventListener('keydown', function (e) {
   switch (e.key) {
     case 'ArrowUp':
       e.preventDefault();
-      moveFocus('up');
+      if (isTextInput(document.activeElement)) {
+        var _el = document.activeElement;
+        try {
+          if (_el.selectionStart === 0 && _el.selectionEnd === 0) {
+            moveFocus('up');
+          } else {
+            _el.setSelectionRange(0, 0);
+          }
+        } catch (_e) { moveFocus('up'); }
+      } else {
+        moveFocus('up');
+      }
       break;
     case 'ArrowDown':
       e.preventDefault();
-      moveFocus('down');
+      if (isTextInput(document.activeElement)) {
+        var _el = document.activeElement;
+        try {
+          var _len = _el.value.length;
+          if (_el.selectionStart === _len && _el.selectionEnd === _len) {
+            moveFocus('down');
+          } else {
+            _el.setSelectionRange(_len, _len);
+          }
+        } catch (_e) { moveFocus('down'); }
+      } else {
+        moveFocus('down');
+      }
       break;
     case 'Enter':
       // Let Enter work normally inside text inputs
@@ -404,23 +436,36 @@ function showEmailPanel() {
   setSoftkeys('', 'NEXT', '');
 }
 
+function resetEmailForm() {
+  _otpRequestInFlight = false;
+  document.getElementById('input-email').disabled = false;
+  document.getElementById('btn-email-next').disabled = false;
+}
+
 function submitEmail() {
+  if (_otpRequestInFlight) return;
   var email = document.getElementById('input-email').value.trim();
   if (!email) {
     showStatus('Enter your email address', true);
     return;
   }
+  _otpRequestInFlight = true;
+  document.getElementById('input-email').disabled = true;
+  document.getElementById('btn-email-next').disabled = true;
   post('/otp', { email: email }).then(function (res) {
     if (res.ok) {
       state.email = email;
+      resetEmailForm();
       showOtpPanel(email);
     } else {
       return res.json().catch(function () { return {}; }).then(function (data) {
         showStatus(data.message || 'Failed to send code', true);
+        resetEmailForm();
       });
     }
   }).catch(function () {
     showStatus('Network error', true);
+    resetEmailForm();
   });
 }
 
@@ -784,25 +829,31 @@ function openList(name) {
   state.currentList = cached ? cached.list : {};
   showListPanel(name);
 
-  post('/list', { csrf: state.csrf, name: name, list: state.currentList }).then(function (res) {
-    if (res.status === 403) {
-      state.csrf = null;
-      localStorage.removeItem('csrf');
-      showEmailPanel();
-      return;
-    }
-    return res.json().then(function (data) {
-      state.currentListId = data.list_id;
-      state.currentList = data.list || {};
-      state.listCache[name] = { name: name, list_id: data.list_id, list: state.currentList };
-      dbSaveList(name, data.list_id, state.currentList);
-      if (activePanel() && activePanel().id === 'panel-list') {
-        softRenderListItems();
+  if (_listFetchController) _listFetchController.abort();
+  _listFetchController = new AbortController();
+  var requestedName = name;
+  post('/list', { csrf: state.csrf, name: name, list: state.currentList }, _listFetchController.signal)
+    .then(function (res) {
+      if (res.status === 403) {
+        state.csrf = null;
+        localStorage.removeItem('csrf');
+        showEmailPanel();
+        return;
       }
+      return res.json().then(function (data) {
+        if (requestedName !== state.currentListName) return;
+        state.currentListId = data.list_id;
+        state.currentList = data.list || {};
+        state.listCache[name] = { name: name, list_id: data.list_id, list: state.currentList };
+        dbSaveList(name, data.list_id, state.currentList);
+        if (activePanel() && activePanel().id === 'panel-list') {
+          softRenderListItems();
+        }
+      });
+    }).catch(function (err) {
+      if (err && err.name === 'AbortError') return;
+      showStatus('Could not sync list', true);
     });
-  }).catch(function () {
-    showStatus('Could not sync list', true);
-  });
 }
 
 // ─── Screen: List ─────────────────────────────────────────────────────────────
@@ -925,6 +976,7 @@ function toggleItem(key) {
   if (!item) return;
   item.crossed = !item.crossed;
   item.updated = nowSec();
+  dbSaveList(state.currentListName, state.currentListId, state.currentList);
   softRenderListItems();
   queueSync();
 }
@@ -985,6 +1037,7 @@ function doSweep() {
     showStatus('Nothing to clear', false);
     return;
   }
+  dbSaveList(state.currentListName, state.currentListId, state.currentList);
   softRenderListItems();
   queueSync();
   showStatus('Cleared!', false);
@@ -1014,6 +1067,7 @@ function submitNewItem() {
   } else {
     state.currentList[key] = { display: display, crossed: false, deleted: false, updated: nowSec() };
   }
+  dbSaveList(state.currentListName, state.currentListId, state.currentList);
   queueSync();
   showStatus('Added \'' + display + '\' to \'' + state.currentListName + '\'!');
   document.getElementById('input-item-name').value = '';
@@ -1078,7 +1132,11 @@ document.getElementById('sk-center').addEventListener('click', function () {
   if (!panel) return;
   switch (panel.id) {
     case 'panel-email':
-      submitEmail();
+      if (focused() && focused().id === 'btn-email-privacy') {
+        interact(focused());
+      } else {
+        submitEmail();
+      }
       break;
     case 'panel-otp':
       submitOtp();
@@ -1112,6 +1170,12 @@ document.getElementById('opt-log-out-all').addEventListener('click', logOutAll);
 
 document.getElementById('btn-settings').addEventListener('click', showOptionsPanel);
 document.getElementById('btn-email-next').addEventListener('click', submitEmail);
+document.getElementById('btn-email-privacy').addEventListener('click', function () {
+  openSheet([{ label: 'Got it', action: function () { closeSheet(); } }], {
+    title: 'What do we do with your email?',
+    note: 'We only use it to send you a one-time sign-in code. The address itself is not stored in our database — only a cryptographic hash is kept so we can recognize you on future visits. After your code is sent, the email address is no longer retained and is not logged.'
+  });
+});
 document.getElementById('btn-otp-back').addEventListener('click', handleSoftLeft);
 document.getElementById('btn-otp-verify').addEventListener('click', submitOtp);
 document.getElementById('btn-new-list-back').addEventListener('click', handleSoftLeft);

@@ -69,6 +69,47 @@ html, body {
   line-height: 1.4;
 }
 
+.welcome-heading {
+  font-size: 15px;
+  font-weight: 600;
+  color: #6a0080;
+  margin: 0 4px 12px;
+  text-align: center;
+}
+
+.hint-link {
+  display: block;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin: 4px 4px 0;
+  font-size: 12px;
+  color: #9b27af;
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: left;
+}
+
+.hint-link[nav-selected="true"] {
+  background: #9b27af;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 3px;
+}
+
+body.dark .welcome-heading {
+  color: #c77ddb;
+}
+
+body.dark .hint-link {
+  color: #c77ddb;
+}
+
+body.dark .hint-link[nav-selected="true"] {
+  background: #9b27af;
+  color: #fff;
+}
+
 .status-toast {
   position: fixed;
   bottom: 34px; /* KaiOS: above softkey bar */
@@ -317,7 +358,6 @@ body.dark .input-wrap label {
   border: 3px solid transparent;
 }
 
-.nav-selectable-ad:focus {
-  outline: none;
+.nav-selectable-ad[nav-selected="true"] {
   border-color: #9b27af;
 }
