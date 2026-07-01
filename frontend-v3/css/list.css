@@ -245,6 +245,7 @@ body.dark .options-row-danger[nav-selected="true"] {
   }
 
   .list-row.crossed[nav-selected="true"] {
+    background: transparent;
     color: #999;
   }
 
