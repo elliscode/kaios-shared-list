@@ -9,6 +9,7 @@ from shared_list.utils import (
     otp_route,
     login_route,
     me_route,
+    cookie_refresh_route,
 )
 from shared_list.shared_list import store_and_merge_list_route, accept_share_route, delete_list_route, log_out_all_route
 
@@ -49,4 +50,6 @@ def route(event):
         return delete_list_route(event)
     if path_equals(event=event, method="POST", path="/log-out-all"):
         return log_out_all_route(event)
+    if path_equals(event=event, method="POST", path="/refresh"):
+        return cookie_refresh_route(event)
     return format_response(event=event, http_code=403, body={"message": "Forbidden"})

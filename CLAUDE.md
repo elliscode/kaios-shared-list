@@ -127,7 +127,7 @@ The recovery path when coming back online is free: `openList(name)` sends `state
 
 ### Version bumping
 
-The version string (e.g. `3.0.17`) appears in:
+The version string (e.g. `3.0.18`) appears in:
 - CSS `<link>` cache-busters in `index.html`
 - `<script>` cache-busters in `index.html`
 - The Version row in the Options panel (`index.html`)

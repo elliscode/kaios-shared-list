@@ -390,6 +390,23 @@ def me_route(event, user_data, body):
     return format_response(event=event, http_code=200, body={"list_names": get_user_list_names(user_data), "user_id": user_data["key2"]})
 
 
+@authenticate
+def cookie_refresh_route(event, user_data, body):
+    cookies_list = event.get("cookies") or []
+    cookie_string = event["headers"].get("cookie") or "; ".join(cookies_list)
+    cookie = parse_cookie(cookie_string)
+    token_data = get_token(cookie)
+    date_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(float(token_data["expiration"])))
+    return format_response(
+        event=event,
+        http_code=200,
+        body="successfully refreshed cookie",
+        headers={
+            "Set-Cookie": f'{APP_NAME}-auth-token={token_data["key2"]}; Domain={COOKIE_DOMAIN}; Expires={date_string}; Secure; HttpOnly',
+        },
+    )
+
+
 def otp_route(event):
     body = parse_body(event["body"])
     email = (body.get("email") or "").strip()

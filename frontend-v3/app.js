@@ -518,6 +518,19 @@ document.getElementById('input-otp').addEventListener('keydown', function (e) {
 
 // ─── Screen: Lists ────────────────────────────────────────────────────────────
 
+var COOKIE_REFRESH_KEY = 'shared-lists-cookie-refresh-time';
+
+function refreshCookieIfNeeded() {
+  var lastRefresh = localStorage.getItem(COOKIE_REFRESH_KEY);
+  if (!lastRefresh || parseInt(lastRefresh) < Date.now()) {
+    post('/refresh', { csrf: state.csrf })
+      .then(function () {
+        localStorage.setItem(COOKIE_REFRESH_KEY, (Date.now() + 86400000).toString());
+      })
+      .catch(function () {});
+  }
+}
+
 function showListsPanel(focusName) {
   document.body.classList.add('authenticated');
   Object.keys(state.listCache).forEach(function (name) {
@@ -527,6 +540,9 @@ function showListsPanel(focusName) {
   setSoftkeys('', 'OPEN', 'Options');
   renderLists(focusName);
   loadLists();
+  if (!navigator.userAgent.includes('Chrome') && navigator.userAgent.includes('Safari')) {
+    refreshCookieIfNeeded();
+  }
   if (window.location.hostname.endsWith('.localhost')) displayAd();
   if (pendingShare) acceptShare();
 }
