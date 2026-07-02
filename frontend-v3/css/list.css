@@ -95,10 +95,23 @@ body.dark .row-share-btn {
   color: #fff;
 }
 
+.list-actions-label {
+  font-size: 11px;
+  color: #888;
+  padding: 8px 8px 2px;
+  margin-top: 4px;
+  border-top: 1px solid #ddd;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+
+body.dark .list-actions-label {
+  color: #5a5a62;
+  border-top-color: #2e2e30;
+}
+
 .sweep-row {
   color: #9b27af;
-  border-top: 1px solid #ddd;
-  margin-top: 4px;
 }
 
 .sweep-row[nav-selected="true"] {
@@ -158,8 +171,6 @@ body.dark .row-share-btn {
 .delete-list-row,
 .list-row.danger {
   color: #c0392b;
-  border-top: 1px solid #eee;
-  margin-top: 4px;
 }
 
 .delete-list-row[nav-selected="true"],

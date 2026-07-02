@@ -23,12 +23,12 @@
 
   <!-- Keepin this commented out for now because I only want installs through kaios store -->
   <!-- <link rel="manifest" href="manifest.webmanifest"> -->
-  <link rel="stylesheet" href="css/root.css?v=3.0.18">
-  <link rel="stylesheet" href="css/header.css?v=3.0.18">
-  <link rel="stylesheet" href="css/softkey.css?v=3.0.18">
-  <link rel="stylesheet" href="css/input.css?v=3.0.18">
-  <link rel="stylesheet" href="css/list.css?v=3.0.18">
-  <link rel="stylesheet" href="css/sheet.css?v=3.0.18">
+  <link rel="stylesheet" href="css/root.css?v=3.0.20">
+  <link rel="stylesheet" href="css/header.css?v=3.0.20">
+  <link rel="stylesheet" href="css/softkey.css?v=3.0.20">
+  <link rel="stylesheet" href="css/input.css?v=3.0.20">
+  <link rel="stylesheet" href="css/list.css?v=3.0.20">
+  <link rel="stylesheet" href="css/sheet.css?v=3.0.20">
 </head>
 <body>
   <div id="root">
@@ -75,7 +75,7 @@
     <div id="panel-lists" class="panel" active="false">
       <div class="header header-bar">
         <h1>My Lists</h1>
-        <button id="btn-settings" class="header-action-btn">⚙</button>
+        <button id="btn-settings" class="header-action-btn has-label">⚙<span class="btn-label">Settings</span></button>
       </div>
       <div id="ad-container"></div>
       <div class="panel-content">
@@ -119,8 +119,8 @@
       <div class="header">
         <button id="btn-list-back" class="header-action-btn" title="Back">←</button>
         <h1 id="list-title">List</h1>
-        <button id="btn-list-share" class="header-action-btn icon-share" title="Share"></button>
-        <button id="btn-list-add" class="header-action-btn" title="Add Item">+</button>
+        <button id="btn-list-share" class="header-action-btn icon-share has-label" title="Share"><span class="btn-label">Share</span></button>
+        <button id="btn-list-add" class="header-action-btn has-label" title="Add Item">+<span class="btn-label">Add</span></button>
       </div>
       <div class="panel-content">
         <ul id="list-ul" class="item-list"></ul>
@@ -141,7 +141,7 @@
         <ul class="item-list">
           <li class="options-row" nav-selectable="true" data-setting="none">
             <span class="options-label">Version</span>
-            <span class="options-value">3.0.18</span>
+            <span class="options-value">3.0.20</span>
           </li>
           <li class="options-row" nav-selectable="true" data-setting="none">
             <span class="options-label">User ID</span>
@@ -240,7 +240,7 @@
     </div>
 
   </div>
-  <script type="text/javascript" src="kaiads.v5.min.js?v=3.0.18"></script>
-  <script src="app.js?v=3.0.18"></script>
+  <script type="text/javascript" src="kaiads.v5.min.js?v=3.0.20"></script>
+  <script src="app.js?v=3.0.20"></script>
 </body>
 </html>

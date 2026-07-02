@@ -637,7 +637,7 @@ function openShareSheet(name) {
       }
     });
   }
-  openSheet(items, { title: 'Share list', note: 'Choose how to share' });
+  openSheet(items, { title: 'Share "' + name + '"', note: 'Choose how to share your list' });
 }
 
 function acceptShare() {
@@ -858,10 +858,19 @@ function openList(name) {
       }
       return res.json().then(function (data) {
         if (requestedName !== state.currentListName) return;
+        var serverList = data.list || {};
+        var merged = Object.assign({}, serverList);
+        Object.keys(state.currentList).forEach(function (key) {
+          var localItem = state.currentList[key];
+          var serverItem = serverList[key];
+          if (!serverItem || localItem.updated >= serverItem.updated) {
+            merged[key] = localItem;
+          }
+        });
         state.currentListId = data.list_id;
-        state.currentList = data.list || {};
-        state.listCache[name] = { name: name, list_id: data.list_id, list: state.currentList };
-        dbSaveList(name, data.list_id, state.currentList);
+        state.currentList = merged;
+        state.listCache[name] = { name: name, list_id: data.list_id, list: merged };
+        dbSaveList(name, data.list_id, merged);
         if (activePanel() && activePanel().id === 'panel-list') {
           softRenderListItems();
         }
@@ -968,11 +977,18 @@ function renderListItems() {
     });
   }
 
+  if (!ul.querySelector('.list-actions-label')) {
+    var actionsLabel = document.createElement('li');
+    actionsLabel.className = 'list-actions-label';
+    actionsLabel.textContent = 'List Actions';
+    ul.appendChild(actionsLabel);
+  }
+
   if (!ul.querySelector('.sweep-row')) {
     var sweep = document.createElement('li');
     sweep.className = 'list-row sweep-row';
     sweep.setAttribute('nav-selectable', 'true');
-    sweep.textContent = 'Clear Crossed Items';
+    sweep.textContent = 'Clear Completed';
     sweep.addEventListener('click', doSweep);
     ul.appendChild(sweep);
   }
@@ -1120,7 +1136,15 @@ function syncList(name, list) {
     }
     if (res.ok) {
       return res.json().then(function (data) {
-        var merged = data.list || state.currentList;
+        var serverList = data.list || {};
+        var merged = Object.assign({}, serverList);
+        Object.keys(state.currentList).forEach(function (key) {
+          var localItem = state.currentList[key];
+          var serverItem = serverList[key];
+          if (!serverItem || localItem.updated >= serverItem.updated) {
+            merged[key] = localItem;
+          }
+        });
         state.listCache[name] = { name: name, list_id: data.list_id, list: merged };
         dbSaveList(name, data.list_id, merged);
         if (state.currentListName === name) {

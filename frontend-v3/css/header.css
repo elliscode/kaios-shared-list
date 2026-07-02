@@ -49,6 +49,26 @@
   background: rgba(255, 255, 255, 0.25);
 }
 
+.btn-label {
+  display: none;
+}
+
+@media (min-width: 241px) {
+  .header-action-btn.has-label {
+    width: auto;
+    padding: 0 8px;
+    gap: 4px;
+    font-size: 14px;
+  }
+
+  .btn-label {
+    display: inline;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+  }
+}
+
 .header-action-btn.icon-share::before {
   content: '';
   display: block;

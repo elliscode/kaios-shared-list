@@ -127,7 +127,7 @@ The recovery path when coming back online is free: `openList(name)` sends `state
 
 ### Version bumping
 
-The version string (e.g. `3.0.18`) appears in:
+The version string (e.g. `3.0.20`) appears in:
 - CSS `<link>` cache-busters in `index.html`
 - `<script>` cache-busters in `index.html`
 - The Version row in the Options panel (`index.html`)
@@ -171,4 +171,4 @@ No known issues at this time
 
 ### Testing steps
 
-1: Enter an email address to receive a one-time login pin. 2: Create a list. 3: Add items to your list, cross some off, delete some. 4: Open the app on another device, enter a different email address to receive a one-time login pin. 5: On the first device, share the link to the second device using SMS or email. 6: Click the link shared on the second device — it opens in the regular browser, showing a fullscreen "Click to add list" prompt (see Sharing & app handoff). Tap it, log in if needed, and confirm the success screen tells you to re-open the app — then re-open the real app and confirm the list now appears in its lists menu. 7: Modify the list on either device, then go back to the main menu and re-enter the list to see the shared list update from the other account / device.
+1: Enter an email address to receive a one-time login pin. 2: Create a list. 3: Add items to your list, cross some off, delete some. 4: Open the app on another device, enter a different email address to receive a one-time login pin. 5: On the first device, share the link to the second device using SMS or email. 6: Click the link shared on the second device — it opens in the regular browser, showing a fullscreen "Click to add list" prompt. Tap it, and confirm the success screen tells you to re-open the app — then re-open the real app and confirm the list now appears in its lists menu. 7: Modify the list on either device, then go back to the main menu and re-enter the list to see the shared list update from the other account / device.
