@@ -7,6 +7,9 @@ zip -r sharedlist-${TIMESTAMP}.zip . \
   -x "assets/banner.png" \
   -x "assets/banner_large.png" \
   -x "assets/screenshot01.png" \
+  -x "assets/screenshot02.png" \
+  -x "assets/screenshot03.png" \
+  -x "assets/screenshot04.png" \
   -x "assets/favicon.png" \
   -x "assets/apple-touch-icon.png" \
   -x "assets/share.svg"
