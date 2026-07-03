@@ -4,15 +4,68 @@
   margin: 0;
 }
 
+.list-row-empty {
+  display: block;
+  padding: 10px 8px;
+  font-size: 14px;
+  color: #999;
+  border-bottom: 1px solid #eee;
+}
+
+@media (min-width: 241px) {
+  .list-row-empty {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 768px) {
+  .list-row-empty {
+    padding: 16px 20px;
+  }
+}
+
+body.dark .list-row-empty {
+  color: #5a5a62;
+  border-bottom-color: #2e2e30;
+}
+
 .list-row {
+  display: flex;
+  align-items: center;
   padding: 10px 8px;
   border-bottom: 1px solid #eee;
   font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   cursor: pointer;
   outline: none;
+}
+
+.list-row-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-share-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: #9b27af;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+body.dark .row-share-btn {
+  color: #c77ddb;
+}
+
+.row-share-btn:hover {
+  background: rgba(155, 39, 175, 0.1);
 }
 
 .list-row[nav-selected="true"] {
@@ -42,10 +95,23 @@
   color: #fff;
 }
 
+.list-actions-label {
+  font-size: 11px;
+  color: #888;
+  padding: 8px 8px 2px;
+  margin-top: 4px;
+  border-top: 1px solid #ddd;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+
+body.dark .list-actions-label {
+  color: #5a5a62;
+  border-top-color: #2e2e30;
+}
+
 .sweep-row {
   color: #9b27af;
-  border-top: 1px solid #ddd;
-  margin-top: 4px;
 }
 
 .sweep-row[nav-selected="true"] {
@@ -105,8 +171,6 @@
 .delete-list-row,
 .list-row.danger {
   color: #c0392b;
-  border-top: 1px solid #eee;
-  margin-top: 4px;
 }
 
 .delete-list-row[nav-selected="true"],
@@ -192,6 +256,7 @@ body.dark .options-row-danger[nav-selected="true"] {
   }
 
   .list-row.crossed[nav-selected="true"] {
+    background: transparent;
     color: #999;
   }
 
@@ -278,6 +343,34 @@ body.dark .options-row-danger[nav-selected="true"] {
   }
 }
 
+/* === Desktop polish (≥768px) — roomier rows, richer hover === */
+@media (min-width: 768px) {
+  .list-row,
+  .new-list-row,
+  .sweep-row,
+  .options-row,
+  .delete-list-row {
+    padding: 16px 20px;
+  }
+
+  .list-row,
+  .options-row {
+    transition: background 0.12s ease;
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) {
+  .list-row:hover:not([nav-selected="true"]),
+  .options-row:hover:not([nav-selected="true"]) {
+    background: #f0e4f4;
+  }
+
+  body.dark .list-row:hover:not([nav-selected="true"]),
+  body.dark .options-row:hover:not([nav-selected="true"]) {
+    background: #332a3a;
+  }
+}
+
 /* === Hover & active states (mouse/trackpad only) === */
 @media (hover: hover) {
   .list-row:hover:not([nav-selected="true"]) {
@@ -302,5 +395,125 @@ body.dark .options-row:active {
   body.dark .list-row:hover:not([nav-selected="true"]),
   body.dark .options-row:hover:not([nav-selected="true"]) {
     background: #2a2030;
+  }
+}
+
+/* === Fix: in mouse/touch mode hover must win over nav-selected (≥241px) ===
+   The nav-selected state is suppressed to transparent in non-keyboard mode,
+   but the :not([nav-selected]) guard on the rules above still blocks hover
+   on whichever item has focus. These higher-specificity rules override that. */
+@media (min-width: 241px) and (hover: hover) {
+  body:not(.using-keyboard) .list-row:hover,
+  body:not(.using-keyboard) .options-row:hover {
+    background: #f5f0f7;
+  }
+
+  body.dark:not(.using-keyboard) .list-row:hover,
+  body.dark:not(.using-keyboard) .options-row:hover {
+    background: #2a2030;
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) {
+  body:not(.using-keyboard) .list-row:hover,
+  body:not(.using-keyboard) .options-row:hover {
+    background: #f0e4f4;
+  }
+
+  body.dark:not(.using-keyboard) .list-row:hover,
+  body.dark:not(.using-keyboard) .options-row:hover {
+    background: #332a3a;
+  }
+}
+
+/* === FAQ rows === */
+.faq-row {
+  display: block;
+  padding: 10px 8px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  cursor: default;
+  outline: none;
+}
+
+.faq-question {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.faq-answer {
+  display: block;
+  font-size: 12px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.faq-row[nav-selected="true"] {
+  background: #9b27af;
+  color: #fff;
+}
+
+.faq-row[nav-selected="true"] .faq-answer {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+body.dark .faq-row {
+  border-bottom-color: #2e2e30;
+}
+
+body.dark .faq-answer {
+  color: #8b8b93;
+}
+
+body.dark .faq-row[nav-selected="true"] {
+  background: #9b27af;
+  color: #fff;
+}
+
+body.dark .faq-row[nav-selected="true"] .faq-answer {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+@media (min-width: 241px) {
+  .faq-row {
+    padding: 14px 16px;
+  }
+
+  .faq-answer {
+    font-size: 14px;
+  }
+
+  .faq-row[nav-selected="true"] {
+    background: transparent;
+    color: inherit;
+  }
+
+  .faq-row[nav-selected="true"] .faq-answer {
+    color: #555;
+  }
+
+  body.dark .faq-row[nav-selected="true"] .faq-answer {
+    color: #8b8b93;
+  }
+
+  body.using-keyboard .faq-row[nav-selected="true"] {
+    background: #9b27af;
+    color: #fff;
+  }
+
+  body.using-keyboard .faq-row[nav-selected="true"] .faq-answer {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  body.dark.using-keyboard .faq-row[nav-selected="true"] {
+    background: #9b27af;
+    color: #fff;
+  }
+}
+
+@media (min-width: 768px) {
+  .faq-row {
+    padding: 16px 20px;
   }
 }

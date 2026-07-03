@@ -38,13 +38,40 @@ def has_invalid_domain(event):
     return "origin" not in event["headers"] or event["headers"]["origin"].rstrip("/") not in DOMAIN_NAMES
 
 
+def get_event_path(event):
+    req_ctx = event.get("requestContext") or {}
+    event_path = event.get("path")
+    if not event_path:
+        http_ctx = req_ctx.get("http") or {}
+        event_path = http_ctx.get("path", "")
+        stage = req_ctx.get("stage", "")
+        event_path = event_path.removeprefix(f"/{stage}")
+    return event_path
+
+
+def get_request_metadata(event):
+    try:
+        req_ctx = event.get("requestContext") or {}
+        http_ctx = req_ctx.get("http") or {}
+        identity  = req_ctx.get("identity") or {}
+        return {
+            "path":      get_event_path(event),
+            "origin":    (event.get("headers") or {}).get("origin"),
+            "sourceIp":  identity.get("sourceIp") or http_ctx.get("sourceIp"),
+            "userAgent": identity.get("userAgent") or http_ctx.get("userAgent"),
+        }
+    except Exception:
+        return {}
+
+
 def format_response(event, http_code, body, headers=None, log_this=True):
+    metadata = get_request_metadata(event)
     if isinstance(body, str):
         body = {"message": body}
     if "origin" in event["headers"] and event["headers"]["origin"].rstrip("/") in DOMAIN_NAMES:
         domain_name = event["headers"]["origin"]
     else:
-        log(f'Invalid origin {event["headers"].get("origin")}')
+        log(metadata, f'Invalid origin {event["headers"].get("origin")}')
         http_code = 403
         body = {"message": "Forbidden"}
         domain_name = "*"
@@ -58,9 +85,9 @@ def format_response(event, http_code, body, headers=None, log_this=True):
     if headers is not None:
         all_headers.update(headers)
     if log_this:
-        log(
-            body,
-        )
+        log(metadata, http_code, body)
+    else:
+        log(metadata, http_code)
     return {
         "statusCode": http_code,
         "body": json.dumps(body),
@@ -87,11 +114,7 @@ def python_obj_to_dynamo_obj(python_obj: dict) -> dict:
 
 
 def path_equals(event, method, path):
-    event_path = event.get("path")
-    if not event_path:
-        event_path = event.get("requestContext", {}).get("http", {}).get("path")
-        stage = event.get("requestContext", {}).get("stage")
-        event_path = event_path.removeprefix(f"/{stage}")
+    event_path = get_event_path(event)
     event_method = event.get("httpMethod", event.get("requestContext", {}).get("http", {}).get("method"))
     return event_method == method and (event_path == path or event_path == path + "/" or path == "*")
 
@@ -204,7 +227,7 @@ def authenticate(func):
 
     return wrapper_func
 
-def send_email(to_address, otp_code, expiration_time):
+def send_email(to_address, otp_code, expiration_time, user_id):
 
     # Send templated email
     response = ses.send_templated_email(
@@ -216,6 +239,7 @@ def send_email(to_address, otp_code, expiration_time):
         TemplateData=json.dumps({
             "code": str(otp_code),
             "minutes": str(expiration_time),
+            "user_id": str(user_id),
         }),
         # Optional: reply-to
         ReplyToAddresses=[SES_REPLY_TO_EMAIL]
@@ -386,7 +410,24 @@ def add_list_to_user(user_id, list_id, name):
 
 @authenticate
 def me_route(event, user_data, body):
-    return format_response(event=event, http_code=200, body={"list_names": get_user_list_names(user_data), "user_id": user_data["key2"]})
+    return format_response(event=event, http_code=200, body={"list_names": get_user_list_names(user_data), "user_id": user_data["key2"]}, log_this=False)
+
+
+@authenticate
+def cookie_refresh_route(event, user_data, body):
+    cookies_list = event.get("cookies") or []
+    cookie_string = event["headers"].get("cookie") or "; ".join(cookies_list)
+    cookie = parse_cookie(cookie_string)
+    token_data = get_token(cookie)
+    date_string = time.strftime("%a, %d %b %Y %H:%M:%S GMT", time.gmtime(float(token_data["expiration"])))
+    return format_response(
+        event=event,
+        http_code=200,
+        body="successfully refreshed cookie",
+        headers={
+            "Set-Cookie": f'{APP_NAME}-auth-token={token_data["key2"]}; Domain={COOKIE_DOMAIN}; Expires={date_string}; Secure; HttpOnly',
+        },
+    )
 
 
 def otp_route(event):
@@ -410,14 +451,13 @@ def otp_route(event):
     # generate and set OTP
     otp_data = get_otp(user_id)
     body_value = {
-        "email": email,
-        "status": f"OTP already exists for {email}, please log in",
+        "status": "OTP already exists, please log in",
     }
     if otp_data is None or otp_data["expiration"] < int(time.time()):
         otp_value = "".join(secrets.choice(digits) for i in range(6))
         otp_data = create_otp(user_id, otp_value, OTP_TIMEOUT)
-        send_email(email, otp_value, OTP_TIMEOUT)
-        body_value = {"email": email}
+        send_email(email, otp_value, OTP_TIMEOUT, user_id)
+        body_value = {}
 
     return format_response(event=event, http_code=200, body=body_value)
 

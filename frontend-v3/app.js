@@ -26,6 +26,9 @@ var state = {
 };
 
 var pendingShare = null;
+var isKaiosShareHandoff = false;
+var _listFetchController = null;
+var _otpRequestInFlight = false;
 
 if (navigator.mozSetMessageHandler) {
   navigator.mozSetMessageHandler('activity', function (activity) {
@@ -85,11 +88,12 @@ function nowSec() {
   return Math.floor(Date.now() / 1000);
 }
 
-function post(path, body) {
+function post(path, body, signal) {
   return fetch(API + path, {
     method: 'POST',
     credentials: 'include',
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
+    signal: signal || null
   });
 }
 
@@ -118,7 +122,7 @@ function showPanel(id) {
   }
   var panel = document.getElementById(id);
   panel.setAttribute('active', 'true');
-  panel.scrollTop = 0;
+  window.scrollTo(0, 0);
   var first = panel.querySelector('[nav-selectable="true"]');
   if (first) setFocus(first);
 }
@@ -141,7 +145,9 @@ function selectables() {
   }
   var panel = activePanel();
   if (!panel) return [];
-  return Array.prototype.slice.call(panel.querySelectorAll('[nav-selectable="true"]'));
+  var navEls = Array.prototype.slice.call(panel.querySelectorAll('[nav-selectable="true"]'));
+  var adEls  = Array.prototype.slice.call(panel.querySelectorAll('.nav-selectable-ad'));
+  return adEls.concat(navEls);
 }
 
 function focused() {
@@ -155,6 +161,7 @@ function setFocus(el) {
   var prev = focused();
   if (prev) prev.removeAttribute('nav-selected');
   el.setAttribute('nav-selected', 'true');
+  if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
   el.focus();
   scrollToVisible(el);
   updateListsSoftkey(el);
@@ -180,18 +187,34 @@ function updateListsSoftkey(el) {
     } else {
       setSoftkeys('Back', 'CHECK', 'Add');
     }
+  } else if (panel.id === 'panel-email') {
+    if (el.id === 'btn-email-privacy') {
+      setSoftkeys('', 'INFO', '');
+    } else {
+      setSoftkeys('', 'NEXT', '');
+    }
   }
 }
 
 function scrollToVisible(el) {
   var container = el.closest('.panel-content') || el.closest('#sheet');
-  if (!container) return;
   var elRect = el.getBoundingClientRect();
-  var cRect = container.getBoundingClientRect();
-  if (elRect.bottom + SOFTKEY_H > cRect.bottom) {
-    container.scrollTop += elRect.bottom + SOFTKEY_H - cRect.bottom;
-  } else if (elRect.top < cRect.top) {
-    container.scrollTop -= cRect.top - elRect.top;
+  if (container && getComputedStyle(container).overflowY !== 'visible') {
+    var cRect = container.getBoundingClientRect();
+    if (elRect.bottom + SOFTKEY_H > cRect.bottom)
+      container.scrollTop += elRect.bottom + SOFTKEY_H - cRect.bottom;
+    else if (elRect.top < cRect.top)
+      container.scrollTop -= cRect.top - elRect.top;
+  } else {
+    var firstNavEl = document.querySelector('.panel[active="true"] [nav-selectable="true"]');
+    if (el.classList.contains('nav-selectable-ad') || el === firstNavEl) {
+      window.scrollTo(0, 0);
+      return;
+    }
+    if (elRect.bottom + SOFTKEY_H > window.innerHeight)
+      window.scrollBy(0, elRect.bottom + SOFTKEY_H - window.innerHeight);
+    else if (elRect.top < 0)
+      window.scrollBy(0, elRect.top);
   }
 }
 
@@ -294,11 +317,34 @@ document.addEventListener('keydown', function (e) {
   switch (e.key) {
     case 'ArrowUp':
       e.preventDefault();
-      moveFocus('up');
+      if (isTextInput(document.activeElement)) {
+        var _el = document.activeElement;
+        try {
+          if (_el.selectionStart === 0 && _el.selectionEnd === 0) {
+            moveFocus('up');
+          } else {
+            _el.setSelectionRange(0, 0);
+          }
+        } catch (_e) { moveFocus('up'); }
+      } else {
+        moveFocus('up');
+      }
       break;
     case 'ArrowDown':
       e.preventDefault();
-      moveFocus('down');
+      if (isTextInput(document.activeElement)) {
+        var _el = document.activeElement;
+        try {
+          var _len = _el.value.length;
+          if (_el.selectionStart === _len && _el.selectionEnd === _len) {
+            moveFocus('down');
+          } else {
+            _el.setSelectionRange(_len, _len);
+          }
+        } catch (_e) { moveFocus('down'); }
+      } else {
+        moveFocus('down');
+      }
       break;
     case 'Enter':
       // Let Enter work normally inside text inputs
@@ -325,8 +371,12 @@ document.addEventListener('keydown', function (e) {
       break;
     case 'Backspace':
       if (!isTextInput(document.activeElement)) {
-        e.preventDefault();
-        handleSoftLeft();
+        var bp = activePanel();
+        if (bp && bp.id !== 'panel-lists' && bp.id !== 'panel-email') {
+          e.preventDefault();
+          handleSoftLeft();
+        }
+        // else: no preventDefault — OS handles back gesture to exit app
       }
       break;
   }
@@ -356,9 +406,11 @@ function handleSoftLeft() {
   } else if (panel.id === 'panel-new-item') {
     showListPanel(state.currentListName);
   } else if (panel.id === 'panel-list') {
-    showListsPanel();
+    showListsPanel(state.currentListName);
   } else if (panel.id === 'panel-options') {
     showListsPanel();
+  } else if (panel.id === 'panel-faq') {
+    showOptionsPanel();
   }
 }
 
@@ -376,6 +428,7 @@ function handleSoftRight() {
 // ─── Screen: Email ────────────────────────────────────────────────────────────
 
 function showEmailPanel() {
+  document.body.classList.remove('authenticated');
   document.getElementById('email-hint').textContent = pendingShare
     ? 'Sign in to join the shared list.'
     : "We'll send a one-time code to your email.";
@@ -383,23 +436,36 @@ function showEmailPanel() {
   setSoftkeys('', 'NEXT', '');
 }
 
+function resetEmailForm() {
+  _otpRequestInFlight = false;
+  document.getElementById('input-email').disabled = false;
+  document.getElementById('btn-email-next').disabled = false;
+}
+
 function submitEmail() {
+  if (_otpRequestInFlight) return;
   var email = document.getElementById('input-email').value.trim();
   if (!email) {
     showStatus('Enter your email address', true);
     return;
   }
+  _otpRequestInFlight = true;
+  document.getElementById('input-email').disabled = true;
+  document.getElementById('btn-email-next').disabled = true;
   post('/otp', { email: email }).then(function (res) {
     if (res.ok) {
       state.email = email;
+      resetEmailForm();
       showOtpPanel(email);
     } else {
       return res.json().catch(function () { return {}; }).then(function (data) {
         showStatus(data.message || 'Failed to send code', true);
+        resetEmailForm();
       });
     }
   }).catch(function () {
     showStatus('Network error', true);
+    resetEmailForm();
   });
 }
 
@@ -452,15 +518,38 @@ document.getElementById('input-otp').addEventListener('keydown', function (e) {
 
 // ─── Screen: Lists ────────────────────────────────────────────────────────────
 
-function showListsPanel() {
+var COOKIE_REFRESH_KEY = 'shared-lists-cookie-refresh-time';
+
+function refreshCookieIfNeeded() {
+  var lastRefresh = localStorage.getItem(COOKIE_REFRESH_KEY);
+  if (!lastRefresh || parseInt(lastRefresh) < Date.now()) {
+    post('/refresh', { csrf: state.csrf })
+      .then(function () {
+        localStorage.setItem(COOKIE_REFRESH_KEY, (Date.now() + 86400000).toString());
+      })
+      .catch(function () {});
+  }
+}
+
+function showListsPanel(focusName) {
+  document.body.classList.add('authenticated');
   Object.keys(state.listCache).forEach(function (name) {
     state.allLists[name] = state.listCache[name].list_id;
   });
   showPanel('panel-lists');
   setSoftkeys('', 'OPEN', 'Options');
-  renderLists();
+  renderLists(focusName);
   loadLists();
+  if (!navigator.userAgent.includes('Chrome') && navigator.userAgent.includes('Safari')) {
+    refreshCookieIfNeeded();
+  }
+  if (window.location.hostname.endsWith('.localhost')) displayAd();
   if (pendingShare) acceptShare();
+}
+
+function showFaqPanel() {
+  showPanel('panel-faq');
+  setSoftkeys('Back', '', '');
 }
 
 function showOptionsPanel() {
@@ -474,6 +563,7 @@ function showOptionsPanel() {
 
 function logOut() {
   state.csrf = null;
+  state.allLists = {};
   localStorage.removeItem('csrf');
   document.body.classList.remove('authenticated', 'list-open');
   showEmailPanel();
@@ -515,7 +605,7 @@ function openShareSheet(name) {
   }
   var url = APP_HOST + '/?share=' + listId;
   var msg = 'Join my list "' + name + '": ' + url;
-  openSheet([
+  var items = [
     {
       label: 'Messages',
       action: function () {
@@ -535,7 +625,19 @@ function openShareSheet(name) {
         a.click();
       }
     }
-  ]);
+  ];
+  if (window.innerWidth > 240) {
+    items.push({
+      label: 'Copy link',
+      action: function () {
+        closeSheet();
+        navigator.clipboard.writeText(url).then(function () {
+          showStatus('Link copied!');
+        });
+      }
+    });
+  }
+  openSheet(items, { title: 'Share "' + name + '"', note: 'Choose how to share your list' });
 }
 
 function acceptShare() {
@@ -555,7 +657,14 @@ function acceptShare() {
         state.allLists[name] = data.list_id;
         state.listCache[name] = { name: name, list_id: data.list_id, list: data.list || {} };
         dbSaveList(name, data.list_id, data.list || {});
-        openList(name);
+        if (isKaiosShareHandoff) {
+          var banner = document.getElementById('open-in-app-banner');
+          banner.removeAttribute('href');
+          banner.textContent = 'Success! Joined the list "' + name + '". Please open the app.';
+          banner.style.display = 'flex';
+        } else {
+          openList(name);
+        }
       } else if (res.status === 404) {
         showStatus('Share link not found', true);
       } else {
@@ -581,13 +690,54 @@ function submitNewList() {
     showStatus('Enter a list name', true);
     return;
   }
-  openList(name);
+  state.allLists[name] = state.allLists[name] || null;
+  showPanel('panel-lists');
+  setSoftkeys('', 'OPEN', 'Options');
+  renderLists();
+
+  post('/list', { csrf: state.csrf, name: name, list: {} }).then(function (res) {
+    if (res.status === 403) {
+      state.csrf = null;
+      localStorage.removeItem('csrf');
+      showEmailPanel();
+      return;
+    }
+    return res.json().then(function (data) {
+      state.allLists[data.name] = data.list_id;
+      state.listCache[data.name] = { name: data.name, list_id: data.list_id, list: data.list || {} };
+      dbSaveList(data.name, data.list_id, data.list || {});
+      if (activePanel() && activePanel().id === 'panel-lists') renderLists();
+    });
+  }).catch(function () {
+    showStatus('Could not create list', true);
+  });
 }
 
 document.getElementById('input-list-name').addEventListener('keydown', function (e) {
   if (e.key === 'Enter') {
     e.preventDefault();
     submitNewList();
+  }
+});
+
+function refreshListsFromLocalCache() {
+  dbLoadAll(function (cache) {
+    state.listCache = cache;
+    state.allLists = {};
+    Object.keys(cache).forEach(function (name) {
+      state.allLists[name] = cache[name].list_id;
+    });
+    if (activePanel() && activePanel().id === 'panel-lists') {
+      var cur = focused();
+      var focusedName = cur ? cur.getAttribute('data-list-name') : null;
+      renderLists(focusedName);
+    }
+  });
+}
+
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && state.csrf) {
+    refreshListsFromLocalCache();
   }
 });
 
@@ -602,6 +752,18 @@ function loadLists() {
     return res.json().then(function (data) {
       if (data.user_id) localStorage.setItem('user_id', data.user_id);
       state.allLists = data.list_names || {};
+      Object.keys(state.allLists).forEach(function (name) {
+        if (!state.listCache[name]) {
+          state.listCache[name] = { name: name, list_id: state.allLists[name], list: {} };
+          dbSaveList(name, state.allLists[name], {});
+        }
+      });
+      Object.keys(state.listCache).forEach(function (name) {
+        if (!(name in state.allLists)) {
+          dbDeleteList(name);
+          delete state.listCache[name];
+        }
+      });
       if (activePanel() && activePanel().id === 'panel-lists') {
         var cur = focused();
         var focusedName = cur ? cur.getAttribute('data-list-name') : null;
@@ -621,17 +783,21 @@ function loadLists() {
   });
 }
 
-function renderLists() {
+function renderLists(focusName) {
   var ul = document.getElementById('lists-ul');
   var empty = document.getElementById('lists-empty');
   ul.innerHTML = '';
 
+  empty.style.display = 'none';
+
   var names = Object.keys(state.allLists);
   if (settings.listOrder === 'alpha') names.sort();
+
   if (!names.length) {
-    empty.style.display = '';
-  } else {
-    empty.style.display = 'none';
+    var emptyLi = document.createElement('li');
+    emptyLi.className = 'list-row-empty';
+    emptyLi.textContent = 'No lists yet.';
+    ul.appendChild(emptyLi);
   }
 
   names.forEach(function (name) {
@@ -639,10 +805,23 @@ function renderLists() {
     li.className = 'list-row';
     li.setAttribute('nav-selectable', 'true');
     li.setAttribute('data-list-name', name);
-    li.textContent = name;
-    li.addEventListener('click', function () {
-      openList(name);
+
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'list-row-name';
+    nameSpan.textContent = name;
+    li.appendChild(nameSpan);
+
+    var shareBtn = document.createElement('button');
+    shareBtn.className = 'row-share-btn';
+    shareBtn.textContent = '⬆';
+    shareBtn.title = 'Share';
+    shareBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openShareSheet(name);
     });
+    li.appendChild(shareBtn);
+
+    li.addEventListener('click', function () { openList(name); });
     ul.appendChild(li);
   });
 
@@ -654,8 +833,9 @@ function renderLists() {
   newLi.addEventListener('click', showNewListPanel);
   ul.appendChild(newLi);
 
-  var first = ul.querySelector('[nav-selectable="true"]');
-  if (first) setFocus(first);
+  var target = focusName ? ul.querySelector('[data-list-name="' + focusName + '"]') : null;
+  if (!target) target = ul.querySelector('[nav-selectable="true"]');
+  if (target) setFocus(target);
 }
 
 function openList(name) {
@@ -665,25 +845,40 @@ function openList(name) {
   state.currentList = cached ? cached.list : {};
   showListPanel(name);
 
-  post('/list', { csrf: state.csrf, name: name, list: state.currentList }).then(function (res) {
-    if (res.status === 403) {
-      state.csrf = null;
-      localStorage.removeItem('csrf');
-      showEmailPanel();
-      return;
-    }
-    return res.json().then(function (data) {
-      state.currentListId = data.list_id;
-      state.currentList = data.list || {};
-      state.listCache[name] = { name: name, list_id: data.list_id, list: state.currentList };
-      dbSaveList(name, data.list_id, state.currentList);
-      if (activePanel() && activePanel().id === 'panel-list') {
-        softRenderListItems();
+  if (_listFetchController) _listFetchController.abort();
+  _listFetchController = new AbortController();
+  var requestedName = name;
+  post('/list', { csrf: state.csrf, name: name, list: state.currentList }, _listFetchController.signal)
+    .then(function (res) {
+      if (res.status === 403) {
+        state.csrf = null;
+        localStorage.removeItem('csrf');
+        showEmailPanel();
+        return;
       }
+      return res.json().then(function (data) {
+        if (requestedName !== state.currentListName) return;
+        var serverList = data.list || {};
+        var merged = Object.assign({}, serverList);
+        Object.keys(state.currentList).forEach(function (key) {
+          var localItem = state.currentList[key];
+          var serverItem = serverList[key];
+          if (!serverItem || localItem.updated >= serverItem.updated) {
+            merged[key] = localItem;
+          }
+        });
+        state.currentListId = data.list_id;
+        state.currentList = merged;
+        state.listCache[name] = { name: name, list_id: data.list_id, list: merged };
+        dbSaveList(name, data.list_id, merged);
+        if (activePanel() && activePanel().id === 'panel-list') {
+          softRenderListItems();
+        }
+      });
+    }).catch(function (err) {
+      if (err && err.name === 'AbortError') return;
+      showStatus('Could not sync list', true);
     });
-  }).catch(function () {
-    showStatus('Could not sync list', true);
-  });
 }
 
 // ─── Screen: List ─────────────────────────────────────────────────────────────
@@ -692,34 +887,44 @@ function showListPanel(name) {
   document.getElementById('list-title').textContent = name;
   showPanel('panel-list');
   setSoftkeys('Back', 'CHECK', 'Add');
-  renderListItems();
+  document.getElementById('list-ul').innerHTML = '';
+  softRenderListItems();
 }
 
 function softRenderListItems(focusKey) {
   var cur = focused();
-  var targetKey = focusKey || (cur ? cur.getAttribute('data-item-key') : null);
-  var sweepFocused = cur ? cur.classList.contains('sweep-row') : false;
-  var deleteFocused = cur ? cur.classList.contains('delete-list-row') : false;
-  var container = document.querySelector('#panel-list .panel-content');
-  var savedScrollTop = container ? container.scrollTop : 0;
+  var prevKey = cur ? cur.getAttribute('data-item-key') : null;
+  var prevSweep = cur ? cur.classList.contains('sweep-row') : false;
+  var prevDelete = cur ? cur.classList.contains('delete-list-row') : false;
+  var hadFocus = !!cur;
+
   renderListItems();
-  if (container) container.scrollTop = savedScrollTop;
-  if (targetKey) {
-    var el = document.querySelector('[data-item-key="' + targetKey + '"]');
-    if (el) setFocus(el);
-  } else if (sweepFocused) {
-    var sweep = document.querySelector('.sweep-row');
-    if (sweep) setFocus(sweep);
-  } else if (deleteFocused) {
-    var del = document.querySelector('.delete-list-row');
-    if (del) setFocus(del);
+
+  if (!hadFocus) {
+    var first = document.querySelector('#list-ul [nav-selectable="true"]');
+    if (first) setFocus(first);
+    return;
   }
+
+  // If the element that was focused before re-rendering still exists, leave
+  // focus and scroll position completely untouched — no setFocus call means
+  // no scrollToVisible call. Only when it's actually gone do we need to pick
+  // a new focus target (which legitimately may require scrolling).
+  var stillThere =
+    (prevKey && document.querySelector('[data-item-key="' + prevKey + '"]')) ||
+    (prevSweep && document.querySelector('.sweep-row')) ||
+    (prevDelete && document.querySelector('.delete-list-row'));
+
+  if (stillThere) return;
+
+  var el = focusKey ? document.querySelector('[data-item-key="' + focusKey + '"]') : null;
+  if (!el) el = document.querySelector('#list-ul [nav-selectable="true"]');
+  if (el) setFocus(el);
 }
 
 function renderListItems() {
   var ul = document.getElementById('list-ul');
   var empty = document.getElementById('list-empty');
-  ul.innerHTML = '';
 
   var items = Object.keys(state.currentList)
     .filter(function (key) { return !state.currentList[key].deleted; })
@@ -729,41 +934,73 @@ function renderListItems() {
       return a[1].display.localeCompare(b[1].display);
     });
 
-  if (!items.length) {
-    empty.style.display = '';
-    return;
-  }
   empty.style.display = 'none';
 
-  items.forEach(function (pair) {
-    var key = pair[0], item = pair[1];
-    var li = document.createElement('li');
-    li.className = 'list-row' + (item.crossed ? ' crossed' : '');
-    li.setAttribute('nav-selectable', 'true');
-    li.setAttribute('data-item-key', key);
-    li.textContent = item.display;
-    li.addEventListener('click', function () {
-      toggleItem(key);
-    });
-    ul.appendChild(li);
+  var existingEls = {};
+  Array.prototype.slice.call(ul.querySelectorAll('[data-item-key]')).forEach(function (li) {
+    existingEls[li.getAttribute('data-item-key')] = li;
   });
 
-  var sweep = document.createElement('li');
-  sweep.className = 'list-row sweep-row';
-  sweep.setAttribute('nav-selectable', 'true');
-  sweep.textContent = 'Clear Crossed Items';
-  sweep.addEventListener('click', doSweep);
-  ul.appendChild(sweep);
+  var emptyLi = ul.querySelector('.list-row-empty');
 
-  var deleteRow = document.createElement('li');
-  deleteRow.className = 'list-row delete-list-row';
-  deleteRow.setAttribute('nav-selectable', 'true');
-  deleteRow.textContent = 'Delete List';
-  deleteRow.addEventListener('click', confirmDeleteList);
-  ul.appendChild(deleteRow);
+  if (!items.length) {
+    Object.keys(existingEls).forEach(function (key) { existingEls[key].remove(); });
+    if (!emptyLi) {
+      emptyLi = document.createElement('li');
+      emptyLi.className = 'list-row-empty';
+      emptyLi.textContent = 'Nothing here.';
+      ul.insertBefore(emptyLi, ul.firstChild);
+    }
+  } else {
+    if (emptyLi) emptyLi.remove();
+    var seenKeys = {};
+    var refNode = ul.firstChild;
+    items.forEach(function (pair) {
+      var key = pair[0], item = pair[1];
+      seenKeys[key] = true;
+      var li = existingEls[key];
+      if (!li) {
+        li = document.createElement('li');
+        li.setAttribute('nav-selectable', 'true');
+        li.setAttribute('data-item-key', key);
+        li.addEventListener('click', function () {
+          toggleItem(key);
+        });
+      }
+      li.className = 'list-row' + (item.crossed ? ' crossed' : '');
+      li.textContent = item.display;
+      if (li !== refNode) ul.insertBefore(li, refNode);
+      refNode = li.nextSibling;
+    });
+    Object.keys(existingEls).forEach(function (key) {
+      if (!seenKeys[key]) existingEls[key].remove();
+    });
+  }
 
-  var first = ul.querySelector('[nav-selectable="true"]');
-  if (first) setFocus(first);
+  if (!ul.querySelector('.list-actions-label')) {
+    var actionsLabel = document.createElement('li');
+    actionsLabel.className = 'list-actions-label';
+    actionsLabel.textContent = 'List Actions';
+    ul.appendChild(actionsLabel);
+  }
+
+  if (!ul.querySelector('.sweep-row')) {
+    var sweep = document.createElement('li');
+    sweep.className = 'list-row sweep-row';
+    sweep.setAttribute('nav-selectable', 'true');
+    sweep.textContent = 'Clear Completed';
+    sweep.addEventListener('click', doSweep);
+    ul.appendChild(sweep);
+  }
+
+  if (!ul.querySelector('.delete-list-row')) {
+    var deleteRow = document.createElement('li');
+    deleteRow.className = 'list-row delete-list-row';
+    deleteRow.setAttribute('nav-selectable', 'true');
+    deleteRow.textContent = 'Delete List';
+    deleteRow.addEventListener('click', confirmDeleteList);
+    ul.appendChild(deleteRow);
+  }
 }
 
 function toggleItem(key) {
@@ -771,6 +1008,7 @@ function toggleItem(key) {
   if (!item) return;
   item.crossed = !item.crossed;
   item.updated = nowSec();
+  dbSaveList(state.currentListName, state.currentListId, state.currentList);
   softRenderListItems();
   queueSync();
 }
@@ -828,9 +1066,10 @@ function doSweep() {
     }
   });
   if (!changed) {
-    showStatus('Nothing to sweep', false);
+    showStatus('Nothing to clear', false);
     return;
   }
+  dbSaveList(state.currentListName, state.currentListId, state.currentList);
   softRenderListItems();
   queueSync();
   showStatus('Cleared!', false);
@@ -860,10 +1099,11 @@ function submitNewItem() {
   } else {
     state.currentList[key] = { display: display, crossed: false, deleted: false, updated: nowSec() };
   }
+  dbSaveList(state.currentListName, state.currentListId, state.currentList);
   queueSync();
-  showListPanel(state.currentListName);
-  var newEl = document.querySelector('[data-item-key="' + key + '"]');
-  if (newEl) setFocus(newEl);
+  showStatus('Added \'' + display + '\' to \'' + state.currentListName + '\'!');
+  document.getElementById('input-item-name').value = '';
+  document.getElementById('input-item-name').focus();
 }
 
 document.getElementById('input-item-name').addEventListener('keydown', function (e) {
@@ -896,7 +1136,15 @@ function syncList(name, list) {
     }
     if (res.ok) {
       return res.json().then(function (data) {
-        var merged = data.list || state.currentList;
+        var serverList = data.list || {};
+        var merged = Object.assign({}, serverList);
+        Object.keys(state.currentList).forEach(function (key) {
+          var localItem = state.currentList[key];
+          var serverItem = serverList[key];
+          if (!serverItem || localItem.updated >= serverItem.updated) {
+            merged[key] = localItem;
+          }
+        });
         state.listCache[name] = { name: name, list_id: data.list_id, list: merged };
         dbSaveList(name, data.list_id, merged);
         if (state.currentListName === name) {
@@ -924,7 +1172,11 @@ document.getElementById('sk-center').addEventListener('click', function () {
   if (!panel) return;
   switch (panel.id) {
     case 'panel-email':
-      submitEmail();
+      if (focused() && focused().id === 'btn-email-privacy') {
+        interact(focused());
+      } else {
+        submitEmail();
+      }
       break;
     case 'panel-otp':
       submitOtp();
@@ -951,11 +1203,19 @@ document.querySelectorAll('.options-row').forEach(function (row) {
   row.addEventListener('click', function () { cycleOption(row); });
 });
 
+document.getElementById('opt-faq').addEventListener('click', showFaqPanel);
+document.getElementById('btn-faq-back').addEventListener('click', showOptionsPanel);
 document.getElementById('opt-log-out').addEventListener('click', logOut);
 document.getElementById('opt-log-out-all').addEventListener('click', logOutAll);
 
 document.getElementById('btn-settings').addEventListener('click', showOptionsPanel);
 document.getElementById('btn-email-next').addEventListener('click', submitEmail);
+document.getElementById('btn-email-privacy').addEventListener('click', function () {
+  openSheet([{ label: 'Got it', action: function () { closeSheet(); } }], {
+    title: 'What do we do with your email?',
+    note: 'We only use it to send you a one-time sign-in code. The address itself is not stored in our database — only a cryptographic hash is kept so we can recognize you on future visits. After your code is sent, the email address is no longer retained and is not logged.'
+  });
+});
 document.getElementById('btn-otp-back').addEventListener('click', handleSoftLeft);
 document.getElementById('btn-otp-verify').addEventListener('click', submitOtp);
 document.getElementById('btn-new-list-back').addEventListener('click', handleSoftLeft);
@@ -963,19 +1223,99 @@ document.getElementById('btn-new-list-create').addEventListener('click', submitN
 document.getElementById('btn-new-item-back').addEventListener('click', handleSoftLeft);
 document.getElementById('btn-new-item-add').addEventListener('click', submitNewItem);
 document.getElementById('btn-list-back').addEventListener('click', handleSoftLeft);
+// ─── KaiOS Ads ────────────────────────────────────────────────────────────────
+
+var _preloadedAd = null;
+var _lastAdTime = 0;
+var _preloadPending = false;
+
+function preloadAd() {
+  if (_preloadPending) return;
+  _preloadPending = true;
+  getKaiAd({
+    publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
+    app: 'kaiosshaaredlist',
+    slot: 'topbarad',
+    h: 60,
+    w: 240,
+    container: document.getElementById('ad-container'),
+    onerror: function (err) { console.log('Ad error', err); _preloadPending = false; },
+    onready: function (ad) { _preloadPending = false; _preloadedAd = ad; }
+  });
+}
+
+function displayAd() {
+  var now = Date.now();
+  if (now - _lastAdTime < 5 * 60 * 1000) return;
+  _lastAdTime = Date.now();
+
+  var container = document.getElementById('ad-container');
+  container.innerHTML = '';
+
+  if (_preloadedAd) {
+    var ad = _preloadedAd;
+    _preloadedAd = null;
+    ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
+    preloadAd();
+  } else {
+    getKaiAd({
+      publisher: '91b81d86-37cf-4a2f-a895-111efa5b36bb',
+      app: 'kaiosshaaredlist',
+      slot: 'topbarad',
+      h: 60,
+      w: 240,
+      container: container,
+      onerror: function (err) { console.log('Ad error', err); },
+      onready: function (ad) {
+        ad.call('display', { tabindex: -1, navClass: 'nav-selectable-ad', display: 'block' });
+        preloadAd();
+      }
+    });
+  }
+}
+
+if (window.location.hostname.endsWith('.localhost')) {
+  document.addEventListener('DOMContentLoaded', preloadAd);
+}
+
 document.getElementById('btn-list-add').addEventListener('click', showNewItemPanel);
+document.getElementById('btn-list-share').addEventListener('click', function () {
+  openShareSheet(state.currentListName);
+});
 document.getElementById('btn-options-back').addEventListener('click', handleSoftLeft);
+document.getElementById('sheet-overlay').addEventListener('click', closeSheet);
 
 openDB(function () {
   applySettings();
   var _shareMatch = window.location.search.match(/[?&]share=([^&]+)/);
-  if (_shareMatch) pendingShare = decodeURIComponent(_shareMatch[1]);
-  dbLoadAll(function (cache) {
-    state.listCache = cache;
-    if (state.csrf) {
-      showListsPanel();
-    } else {
-      showEmailPanel();
-    }
-  });
+  var shareIdFromUrl = _shareMatch ? decodeURIComponent(_shareMatch[1]) : null;
+  if (shareIdFromUrl) pendingShare = shareIdFromUrl;
+
+  isKaiosShareHandoff = /[?&]handoff=1(&|$)/.test(window.location.search);
+
+  var showShareIntroBanner = shareIdFromUrl &&
+      !isKaiosShareHandoff &&
+      !window.location.hostname.endsWith('.localhost') &&
+      /kaios/i.test(navigator.userAgent);
+
+  function startNormalBootstrap() {
+    dbLoadAll(function (cache) {
+      state.listCache = cache;
+      if (state.csrf) {
+        showListsPanel();
+      } else {
+        showEmailPanel();
+      }
+    });
+  }
+
+  if (showShareIntroBanner) {
+    var banner = document.getElementById('open-in-app-banner');
+    banner.textContent = 'Click to add list →';
+    banner.href = 'http://sharedlists.localhost/index.html?share=' + encodeURIComponent(shareIdFromUrl) + '&handoff=1';
+    banner.style.display = 'flex';
+    return;
+  }
+
+  startNormalBootstrap();
 });

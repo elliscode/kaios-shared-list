@@ -1,6 +1,6 @@
 # KaiOS Shared List
 
-This app allows you to share a grocery list from your KaiOS device to anyone with a computer, laptop, smartphone, or KaiOS device. It uses WebSockets for live list updates to allow two poeple to edit at once.
+A collaborative shared list app that works on KaiOS phones, iPhones, and desktop browsers from the same codebase. Share a list with anyone via a link — changes sync the next time either person opens the list.
 
 ## Backend
 
@@ -55,4 +55,81 @@ It would be possible for a developer with access to the `ENCRYPTION_KEY` to manu
 
 ## Frontend
 
-TODO
+A single HTML/CSS/JS codebase (`frontend-v3/`) that runs in two modes — as a KaiOS app installed from the KaiOS Store, and as a normal web app in any browser. No framework, no build step, no bundler. Ships as static files.
+
+### File structure
+
+```
+frontend-v3/
+  index.html              # All panel markup lives here
+  app.js                  # All application logic (single file)
+  manifest.webmanifest    # KaiOS/PWA manifest; b2g_features for deeplinks
+  css/
+    root.css              # Layout, panels, responsive breakpoints, dark mode
+    header.css            # Header bar + action buttons
+    softkey.css           # KaiOS bottom softkey bar
+    list.css              # List rows, options rows, nav-selected highlights
+    input.css             # Floating-label input fields
+    sheet.css             # Bottom sheet overlay
+```
+
+### Panel architecture
+
+The app is a panel-based SPA. Every "screen" is a `<div class="panel">` in `index.html`. Only one panel is visible at a time via the `active="true"` attribute on the panel itself:
+
+```css
+.panel            { display: none; }
+.panel[active="true"] { display: flex; }
+```
+
+Panels: `panel-email` → `panel-otp` → `panel-lists` → `panel-list` → `panel-new-item`. Plus `panel-new-list` and `panel-options` as overlays. Navigation between panels is handled entirely in `app.js` by functions like `showListsPanel()`, `showListPanel(name)`, etc. There is no router.
+
+### Responsive breakpoints
+
+The UI adapts purely by viewport width — no user-agent sniffing or feature detection for layout.
+
+| Width | Target | Behaviour |
+|---|---|---|
+| ≤ 240px | KaiOS devices | Softkey bar visible at bottom; compact 10px/8px row padding; 14px font; D-pad navigation |
+| 241px – 767px | iPhone / mobile browsers | Softkey hidden; header nav buttons (←, +, ✓) shown; edge-to-edge lists; 14px/16px row padding; 16px font; text selection disabled to prevent accidental tap-selection |
+| ≥ 768px | Desktop browsers | Same single-column layout as mobile web; text selection re-enabled for copy/paste |
+
+The `#softkey` bar is `display: flex` by default (KaiOS base style) and `display: none` inside `@media (min-width: 241px)` in `softkey.css`. Header action buttons are `display: none` by default and `display: flex` at 241px+ in `header.css`.
+
+### Navigation
+
+**KaiOS (D-pad):** Arrow keys move a `nav-selected="true"` attribute between `[nav-selectable="true"]` elements in the active panel. The three softkey labels (`#sk-left`, `#sk-center`, `#sk-right`) update via `updateListsSoftkey()` depending on what is focused. Pressing the center key or Enter triggers `interact(focused())` which calls `.click()` on the focused element.
+
+**Touch / mouse (241px+):** Every interactive element has a `click` event listener. The `nav-selected` purple highlight is suppressed at 241px+ unless the user presses an arrow key, which adds `body.using-keyboard`. Switching back to mouse/touch removes it immediately via a `mousedown`/`touchstart` capture listener. This means the selection highlight appears exactly when it is useful and disappears when it isn't.
+
+**Header buttons:** At 241px+ every panel header shows contextual action buttons (← back, + add, ✓ confirm, ⚙ settings). These call the same functions as the KaiOS softkey handlers so there is no duplicated logic.
+
+### Offline / sync
+
+`app.js` uses IndexedDB (via `openDB` / `dbSaveList` / `dbLoadAll`) to cache every list locally. On startup, the cached state is loaded and shown immediately before any network request completes. When the user opens a list, the cached version renders first and then a `POST /list` sync fires in the background — `softRenderListItems()` updates the view in-place while preserving the user's scroll position and focused element.
+
+Local edits are debounced: `queueSync()` waits 1 second after the last change before calling `syncList()`, so rapid toggles don't hammer the API.
+
+### Auth
+
+1. `showEmailPanel()` → user enters email → `POST /otp` → server sends a 6-digit code via SES
+2. `showOtpPanel()` → user enters code → `POST /login` → server sets an HttpOnly session cookie and returns a CSRF token in `x-csrf-token`
+3. The CSRF token is stored in `localStorage` and sent in the body of every subsequent request
+4. On any 403 response the CSRF token is cleared and the user is returned to the email panel
+
+### Sharing
+
+Share links take the form `https://lists.elliscode.com/?share=<list_id>`.
+
+- **Web browser:** On load, `app.js` checks `window.location.search` for a `?share=` parameter via regex. If found, the list ID is stored in `pendingShare` and processed after login via `acceptShare()`.
+- **KaiOS installed app:** `manifest.webmanifest` declares a `deeplinks` + `activities` entry under `b2g_features`. When a matching URL is tapped, KaiOS launches the app and fires a Web Activity. `navigator.mozSetMessageHandler('activity', ...)` captures the URL and stores the list ID in `pendingShare` before the app has finished initialising.
+
+In both cases `pendingShare` is preserved across the login flow — if the session has expired, the user is re-authenticated and the share is accepted automatically on the next `showListsPanel()` call.
+
+### KaiOS packaging
+
+`manifest.webmanifest` includes the standard PWA fields plus a `b2g_features` block required by the KaiOS Store. Icons are provided at 56×56 and 112×112 (`icons/`). The manifest `<link>` in `index.html` is commented out during development to avoid unintended installs — uncomment it before submitting to the store.
+
+### Dark mode
+
+Toggled by the Display Mode setting in the options panel. The choice is saved to `localStorage`. `applySettings()` adds/removes the `body.dark` class, and all dark-mode styles are `body.dark` selectors in `root.css` and `list.css`. There is no `prefers-color-scheme` media query — the setting is always explicit user choice.
