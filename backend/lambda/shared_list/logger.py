@@ -1,5 +1,5 @@
-def log(message: str, *context):
-    print(f"{context} -- {message}")
+def log(*content):
+    print(f"{content}")
 
 
 if __name__ == "__main__":

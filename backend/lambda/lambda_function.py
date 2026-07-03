@@ -10,15 +10,15 @@ from shared_list.utils import (
     login_route,
     me_route,
     cookie_refresh_route,
+    get_request_metadata,
 )
 from shared_list.shared_list import store_and_merge_list_route, accept_share_route, delete_list_route, log_out_all_route
 
 
 def lambda_handler(event, context):
     try:
-        log(json.dumps(event.get("headers")))
+        log(get_request_metadata(event), event.get("headers"))
         result = route(event)
-        log(result["statusCode"])
         return result
     except Exception:
         traceback.print_exc()

@@ -80,7 +80,7 @@ def delete_list_route(event, user_data, body):
 
     remove_list_from_user(user_data["key2"], name)
 
-    return format_response(event=event, http_code=200, body={"name": name})
+    return format_response(event=event, http_code=200, body={"name": name}, log_this=False)
 
 
 @authenticate
