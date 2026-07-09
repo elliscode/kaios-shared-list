@@ -501,7 +501,30 @@ function submitOtp() {
       showListsPanel();
     } else {
       return res.json().catch(function () { return {}; }).then(function (data) {
-        showStatus(data.message || 'Incorrect code', true);
+        var waitMatch = (data.message || '').match(/(\d+) seconds/);
+        if (waitMatch) {
+          var remaining = parseInt(waitMatch[1], 10);
+          var otpHint = document.getElementById('otp-hint');
+          var origHint = otpHint.textContent;
+          var btn = document.getElementById('btn-otp-verify');
+          var input = document.getElementById('input-otp');
+          btn.disabled = true;
+          input.disabled = true;
+          otpHint.textContent = 'Try again in ' + remaining + 's...';
+          var timer = setInterval(function () {
+            remaining -= 1;
+            if (remaining <= 0) {
+              clearInterval(timer);
+              btn.disabled = false;
+              input.disabled = false;
+              otpHint.textContent = origHint;
+            } else {
+              otpHint.textContent = 'Try again in ' + remaining + 's...';
+            }
+          }, 1000);
+        } else {
+          showStatus(data.message || 'Incorrect code', true);
+        }
       });
     }
   }).catch(function () {

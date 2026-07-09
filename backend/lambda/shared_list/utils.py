@@ -23,7 +23,7 @@ SES_REPLY_TO_EMAIL = os.environ.get("SES_REPLY_TO_EMAIL")
 SES_TEMPLATE_NAME = os.environ.get("SES_TEMPLATE_NAME")
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN")
 EMAIL_REGEX = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-OTP_TIMEOUT = 5
+OTP_TIMEOUT = 15
 DELETED_ITEM_RETENTION_DAYS = 4 * 30
 
 digits = "0123456789"
